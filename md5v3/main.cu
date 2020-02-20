@@ -167,22 +167,15 @@ int main(int argc, char* argv[]) {
     //    std::cout << argv[0] << " <md5_hash>" << std::endl;
     //    return -1;
     //}
-    uint32_t h0, h1, h2, h3, h4;
-    sha1((unsigned char*)"kisa", 4, &h0, &h1, &h2, &h3, &h4);
-    printf("\n\n");
-    printf("Hash: %x %x %x %x %x", h0, h1, h2, h3, h4);
-    printf("\n\n");
+
     /* Amount of available devices */
     int devices;
     ERROR_CHECK(cudaGetDeviceCount(&devices));
     cudaDeviceProp deviceProp;
-    int nDevCount, i;
-
-    cudaGetDeviceCount(&nDevCount);
     int* prop[2] = { 0 , 0 };
 
 
-    for (i = 0; i < nDevCount; i++)
+    for (int i = 0; i < devices; i++)
     {
         if (cudaSuccess != cudaGetDeviceProperties(&deviceProp, i))
         {
