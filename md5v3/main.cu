@@ -41,7 +41,7 @@
 
 #define CONST_WORD_LENGTH_MIN 1
 #define CONST_WORD_LENGTH_MAX 8
-#define HASHES_PER_KERNEL 128UL
+#define HASHES_PER_KERNEL 1 //128UL
 
 #include "assert.cu"
 #include "md5.cu"
@@ -200,7 +200,7 @@ int main(int argc, char* argv[]) {
 
 
     /* Hash stored as u32 integers */
-    uint32_t md5Hash[4];
+    //uint32_t md5Hash[4];
     //md5
     //char* hash = "1c0d894f6f6ab511099a568f6e876c2f";
 
@@ -217,18 +217,30 @@ int main(int argc, char* argv[]) {
 
     /* Parse argument (sha1)*/
     uint32_t sha1Hash[5];
+    uint32_t sha1Hash2[5];
+
     char tmp[40];
     for (int i = 0; i < 5; i++)
     {
         for (int j = 0; j < 8; j++)
             tmp[j] = hash[i * 8 + j];
 
-        sha1Hash[i] = strtoll(tmp, NULL, 16);
+        sha1Hash2[i] = (uint32_t)strtoll(tmp, NULL, 16);
     }
-    //sha1((unsigned char*)"abcd", 4, &sha1Hash[0], &sha1Hash[1], &sha1Hash[2], &sha1Hash[3], &sha1Hash[4]);
-    printf("SHA1 hash : \t\t");
+    sha1((unsigned char*)"abcd", 4, &sha1Hash[0], &sha1Hash[1], &sha1Hash[2], &sha1Hash[3], &sha1Hash[4]);
+    printf("SHA1 hash1 : \t\t");
     for (int i = 0; i < 5; i++)
-        printf("%X \t", sha1Hash[i]);
+        printf("%x \t", sha1Hash[i]);
+
+    printf("SHA1 hash2 : \t\t");
+    for (int i = 0; i < 5; i++)
+        printf("%x \t", sha1Hash2[i]);
+
+    printf("\n\n\n");
+
+    if (sha1Hash[0] == sha1Hash2[0] && sha1Hash[1] == sha1Hash2[1] && sha1Hash[2] == sha1Hash2[2] && sha1Hash[3] == sha1Hash2[3] && sha1Hash[4] == sha1Hash2[4]) {
+        printf("EQUAL");
+    }
 
     printf("\n\n\n");
 
@@ -273,10 +285,10 @@ int main(int argc, char* argv[]) {
             cudaSetDevice(device);
 
             /* Copy current data */
-            ERROR_CHECK(cudaMemcpy(words[device], g_word, sizeof(uint8_t) * CONST_WORD_LIMIT, cudaMemcpyHostToDevice));
+            //ERROR_CHECK(cudaMemcpy(words[device], g_word, sizeof(uint8_t) * CONST_WORD_LIMIT, cudaMemcpyHostToDevice));
 
             /* Start kernel */
-            sha1Crack << <BLOCKS, THREADS >> > (g_wordLength, words[device], sha1Hash[0], sha1Hash[1], sha1Hash[2], sha1Hash[3], sha1Hash[4]);
+            sha1Crack << <1, 1 >> > (g_wordLength, words[device], sha1Hash[0], sha1Hash[1], sha1Hash[2], sha1Hash[3], sha1Hash[4]);
 
             /* Global increment */
             result = next(&g_wordLength, g_word, THREADS * HASHES_PER_KERNEL * BLOCKS);
@@ -298,7 +310,7 @@ int main(int argc, char* argv[]) {
             cudaDeviceSynchronize();
 
             /* Copy result */
-            ERROR_CHECK(cudaMemcpyFromSymbol(g_cracked, g_deviceCracked, sizeof(uint8_t) * CONST_WORD_LIMIT, 0, cudaMemcpyDeviceToHost));
+            //ERROR_CHECK(cudaMemcpyFromSymbol(g_cracked, g_deviceCracked, sizeof(uint8_t) * CONST_WORD_LIMIT, 0, cudaMemcpyDeviceToHost));
 
             /* Check result */
             if (found = *g_cracked != 0) {
