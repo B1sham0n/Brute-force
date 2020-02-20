@@ -41,7 +41,7 @@
 
 #define CONST_WORD_LENGTH_MIN 1
 #define CONST_WORD_LENGTH_MAX 8
-#define HASHES_PER_KERNEL 1 //128UL
+#define HASHES_PER_KERNEL 128UL
 
 #include "assert.cu"
 #include "md5.cu"
@@ -200,49 +200,49 @@ int main(int argc, char* argv[]) {
 
 
     /* Hash stored as u32 integers */
-    //uint32_t md5Hash[4];
+    uint32_t md5Hash[4];
     //md5
-    //char* hash = "1c0d894f6f6ab511099a568f6e876c2f";
+    char* hash = "1c0d894f6f6ab511099a568f6e876c2f";
 
     //sha1
-    char* hash = "81fe8bfe87576c3ecb22426f8e57847382917acf";
+    //char* hash = "9f5b2e4c02a063822535af58fedb94550ecc79cc";
 
     /* Parse argument (md5)*/
-    //for (uint8_t i = 0; i < 4; i++) {
-    //    char tmp[16];
-    //    strncpy(tmp, hash + i * 8, 8);
-    //    sscanf(tmp, "%x", &md5Hash[i]);
-    //    md5Hash[i] = (md5Hash[i] & 0xFF000000) >> 24 | (md5Hash[i] & 0x00FF0000) >> 8 | (md5Hash[i] & 0x0000FF00) << 8 | (md5Hash[i] & 0x000000FF) << 24;
-    //}
+    for (uint8_t i = 0; i < 4; i++) {
+        char tmp[16];
+        strncpy(tmp, hash + i * 8, 8);
+        sscanf(tmp, "%x", &md5Hash[i]);
+        md5Hash[i] = (md5Hash[i] & 0xFF000000) >> 24 | (md5Hash[i] & 0x00FF0000) >> 8 | (md5Hash[i] & 0x0000FF00) << 8 | (md5Hash[i] & 0x000000FF) << 24;
+    }
 
     /* Parse argument (sha1)*/
-    uint32_t sha1Hash[5];
-    uint32_t sha1Hash2[5];
+    //uint32_t sha1Hash[5];
+    //uint32_t sha1Hash2[5];
 
-    char tmp[40];
-    for (int i = 0; i < 5; i++)
-    {
-        for (int j = 0; j < 8; j++)
-            tmp[j] = hash[i * 8 + j];
+    //char tmp[40];
+    //for (int i = 0; i < 5; i++)
+    //{
+    //    for (int j = 0; j < 8; j++)
+    //        tmp[j] = hash[i * 8 + j];
 
-        sha1Hash2[i] = (uint32_t)strtoll(tmp, NULL, 16);
-    }
-    sha1((unsigned char*)"abcd", 4, &sha1Hash[0], &sha1Hash[1], &sha1Hash[2], &sha1Hash[3], &sha1Hash[4]);
-    printf("SHA1 hash1 : \t\t");
-    for (int i = 0; i < 5; i++)
-        printf("%x \t", sha1Hash[i]);
+    //    sha1Hash2[i] = (uint32_t)strtoll(tmp, NULL, 16);
+    //}
+    //sha1((unsigned char*)"eda", 3, &sha1Hash[0], &sha1Hash[1], &sha1Hash[2], &sha1Hash[3], &sha1Hash[4]);
+    //printf("SHA1 hash1 : \t\t");
+    //for (int i = 0; i < 5; i++)
+    //    printf("%x \t", sha1Hash[i]);
+    //printf("\n");
 
-    printf("SHA1 hash2 : \t\t");
-    for (int i = 0; i < 5; i++)
-        printf("%x \t", sha1Hash2[i]);
+    //printf("SHA1 hash2 : \t\t");
+    //for (int i = 0; i < 5; i++)
+    //    printf("%x \t", sha1Hash2[i]);
+    //printf("\n");
 
-    printf("\n\n\n");
+    //if (sha1Hash[0] == sha1Hash2[0] && sha1Hash[1] == sha1Hash2[1] && sha1Hash[2] == sha1Hash2[2] && sha1Hash[3] == sha1Hash2[3] && sha1Hash[4] == sha1Hash2[4]) {
+    //    printf("EQUAL");
+    //}
 
-    if (sha1Hash[0] == sha1Hash2[0] && sha1Hash[1] == sha1Hash2[1] && sha1Hash[2] == sha1Hash2[2] && sha1Hash[3] == sha1Hash2[3] && sha1Hash[4] == sha1Hash2[4]) {
-        printf("EQUAL");
-    }
-
-    printf("\n\n\n");
+    //printf("\n\n\n");
 
     /* Fill memory */
     memset(g_word, 0, CONST_WORD_LIMIT);
@@ -288,10 +288,10 @@ int main(int argc, char* argv[]) {
             //ERROR_CHECK(cudaMemcpy(words[device], g_word, sizeof(uint8_t) * CONST_WORD_LIMIT, cudaMemcpyHostToDevice));
 
             /* Start kernel */
-            sha1Crack << <1, 1 >> > (g_wordLength, words[device], sha1Hash[0], sha1Hash[1], sha1Hash[2], sha1Hash[3], sha1Hash[4]);
+            md5Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], md5Hash[0], md5Hash[1], md5Hash[2], md5Hash[3]);
 
             /* Global increment */
-            result = next(&g_wordLength, g_word, THREADS * HASHES_PER_KERNEL * BLOCKS);
+            result = next(&g_wordLength, g_word, BLOCKS * HASHES_PER_KERNEL * THREADS);
         }
 
         /* Display progress */

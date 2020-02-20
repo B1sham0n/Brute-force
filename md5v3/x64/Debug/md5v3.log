@@ -5,7 +5,7 @@ D:\Cuda\Brute-force\md5v3\sha1.cu(31): warning : variable "ic" was declared but 
   
 D:/Cuda/Brute-force/md5v3/main.cu(184): warning : non-void function "main" should return a value
   
-D:/Cuda/Brute-force/md5v3/main.cu(208): warning : conversion from a string literal to "char *" is deprecated
+D:/Cuda/Brute-force/md5v3/main.cu(205): warning : conversion from a string literal to "char *" is deprecated
   
 D:/Cuda/Brute-force/md5v3/main.cu(175): warning : variable "prop" was declared but never referenced
   
@@ -13,7 +13,7 @@ D:\Cuda\Brute-force\md5v3\sha1.cu(14): warning : calling a __host__ function("st
   
 D:/Cuda/Brute-force/md5v3/main.cu(184): warning : non-void function "main" should return a value
   
-D:/Cuda/Brute-force/md5v3/main.cu(208): warning : conversion from a string literal to "char *" is deprecated
+D:/Cuda/Brute-force/md5v3/main.cu(205): warning : conversion from a string literal to "char *" is deprecated
   
   main.cu
   device_functions.h is an internal header file and must not be used directly.  This file will be removed in a future CUDA release.  Please use cuda_runtime_api.h or cuda_runtime.h instead.
