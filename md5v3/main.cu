@@ -205,7 +205,7 @@ int main(int argc, char* argv[]) {
     //char* hash = "1c0d894f6f6ab511099a568f6e876c2f";
 
     //sha1
-    char* hash = "8d20fe7a98d042d9ba77cb8ddc5c00c7726b2e8b";
+    char* hash = "81fe8bfe87576c3ecb22426f8e57847382917acf";
 
     /* Parse argument (md5)*/
     //for (uint8_t i = 0; i < 4; i++) {
@@ -223,10 +223,10 @@ int main(int argc, char* argv[]) {
         for (int j = 0; j < 8; j++)
             tmp[j] = hash[i * 8 + j];
 
-        sha1Hash[i] = strtol(tmp, NULL, 16);
+        sha1Hash[i] = strtoll(tmp, NULL, 16);
     }
-
-    printf("SHA1 hach chunks: \t\t");
+    //sha1((unsigned char*)"abcd", 4, &sha1Hash[0], &sha1Hash[1], &sha1Hash[2], &sha1Hash[3], &sha1Hash[4]);
+    printf("SHA1 hash : \t\t");
     for (int i = 0; i < 5; i++)
         printf("%X \t", sha1Hash[i]);
 
