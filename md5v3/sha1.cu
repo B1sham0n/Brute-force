@@ -9,7 +9,7 @@
 #include <device_functions.h>
 #define rotateleft(x,n) ((x<<n) | (x>>(32-n)))
 #define rotateright(x,n) ((x>>n) | (x<<(32-n)))
-__device__ __host__ inline void sha1(unsigned char* _word, int length, uint32_t* hash0, uint32_t* hash1, uint32_t* hash2, uint32_t* hash3, uint32_t* hash4)
+__device__ __host__ inline void sha1(unsigned char* _word, uint32_t length, uint32_t* hash0, uint32_t* hash1, uint32_t* hash2, uint32_t* hash3, uint32_t* hash4)
 {
     unsigned char* _word_ = (unsigned char*)malloc(strlen((const char*)_word) + 100);
     memcpy(_word_, _word, sizeof(unsigned char) * length);
@@ -103,9 +103,7 @@ __device__ __host__ inline void sha1(unsigned char* _word, int length, uint32_t*
         h3 = h3 + d;
         h4 = h4 + e;
     }
-    //printf("\n\n");
-    //printf("Hash: %x %x %x %x %x", h0, h1, h2, h3, h4);
-    //printf("\n\n");
+
     *hash0 = h0;
     *hash1 = h1;
     *hash2 = h2;

@@ -201,15 +201,36 @@ int main(int argc, char* argv[]) {
 
     /* Hash stored as u32 integers */
     uint32_t md5Hash[4];
-    char* hash = "1c0d894f6f6ab511099a568f6e876c2f";
+    //md5
+    //char* hash = "1c0d894f6f6ab511099a568f6e876c2f";
 
-    /* Parse argument */
-    for (uint8_t i = 0; i < 4; i++) {
-        char tmp[16];
-        strncpy(tmp, hash + i * 8, 8);
-        sscanf(tmp, "%x", &md5Hash[i]);
-        md5Hash[i] = (md5Hash[i] & 0xFF000000) >> 24 | (md5Hash[i] & 0x00FF0000) >> 8 | (md5Hash[i] & 0x0000FF00) << 8 | (md5Hash[i] & 0x000000FF) << 24;
+    //sha1
+    char* hash = "8d20fe7a98d042d9ba77cb8ddc5c00c7726b2e8b";
+
+    /* Parse argument (md5)*/
+    //for (uint8_t i = 0; i < 4; i++) {
+    //    char tmp[16];
+    //    strncpy(tmp, hash + i * 8, 8);
+    //    sscanf(tmp, "%x", &md5Hash[i]);
+    //    md5Hash[i] = (md5Hash[i] & 0xFF000000) >> 24 | (md5Hash[i] & 0x00FF0000) >> 8 | (md5Hash[i] & 0x0000FF00) << 8 | (md5Hash[i] & 0x000000FF) << 24;
+    //}
+
+    /* Parse argument (sha1)*/
+    uint32_t sha1Hash[5];
+    char tmp[40];
+    for (int i = 0; i < 5; i++)
+    {
+        for (int j = 0; j < 8; j++)
+            tmp[j] = hash[i * 8 + j];
+
+        sha1Hash[i] = strtol(tmp, NULL, 16);
     }
+
+    printf("SHA1 hach chunks: \t\t");
+    for (int i = 0; i < 5; i++)
+        printf("%X \t", sha1Hash[i]);
+
+    printf("\n\n\n");
 
     /* Fill memory */
     memset(g_word, 0, CONST_WORD_LIMIT);
@@ -255,7 +276,7 @@ int main(int argc, char* argv[]) {
             ERROR_CHECK(cudaMemcpy(words[device], g_word, sizeof(uint8_t) * CONST_WORD_LIMIT, cudaMemcpyHostToDevice));
 
             /* Start kernel */
-            md5Crack << <BLOCKS, THREADS >> > (g_wordLength, words[device], md5Hash[0], md5Hash[1], md5Hash[2], md5Hash[3]);
+            sha1Crack << <BLOCKS, THREADS >> > (g_wordLength, words[device], sha1Hash[0], sha1Hash[1], sha1Hash[2], sha1Hash[3], sha1Hash[4]);
 
             /* Global increment */
             result = next(&g_wordLength, g_word, THREADS * HASHES_PER_KERNEL * BLOCKS);
