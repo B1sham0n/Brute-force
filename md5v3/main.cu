@@ -120,7 +120,7 @@ __global__ void md5Crack(uint8_t wordLength, char* charsetWord, uint32_t hash01,
 
 
 __global__ void sha1Crack(uint8_t wordLength, char* charsetWord, uint32_t hash01, uint32_t hash02, uint32_t hash03, uint32_t hash04, uint32_t hash05) {
-    uint32_t idx = (blockIdx.x * blockDim.x + threadIdx.x) * HASHES_PER_KERNEL;
+    uint32_t idx = (blockIdx.x * blockDim.x + threadIdx.x);
 
     /* Shared variables */
     __shared__ char sharedCharset[CONST_CHARSET_LIMIT];
@@ -139,7 +139,7 @@ __global__ void sha1Crack(uint8_t wordLength, char* charsetWord, uint32_t hash01
     /* Increment current word by thread index */
     next(&threadWordLength, threadCharsetWord, idx);
     //printf("%d", wordLength);
-    for (uint32_t hash = 0; hash < HASHES_PER_KERNEL; hash++) {
+    for (uint32_t hash = 0; hash < 1; hash++) {
         for (uint32_t i = 0; i < wordLength; i++) {
             threadTextWord[i] = sharedCharset[threadCharsetWord[i]];
         }
@@ -202,15 +202,15 @@ int main(int argc, char* argv[]) {
     //char* hash = "1c0d894f6f6ab511099a568f6e876c2f";
 
     //sha1
-    char* hash = "3e9d6d9f0fd38a6f3e59c5df2f274afed24d0b2f";
+    char* hash = "7b7a2f915da4bfa45486f9538348e9145c7a3eed";
 
     /* Parse argument (md5)*/
-    //for (uint8_t i = 0; i < 4; i++) {
-    //    char tmp[16];
-    //    strncpy(tmp, hash + i * 8, 8);
-    //    sscanf(tmp, "%x", &md5Hash[i]);
-    //    md5Hash[i] = (md5Hash[i] & 0xFF000000) >> 24 | (md5Hash[i] & 0x00FF0000) >> 8 | (md5Hash[i] & 0x0000FF00) << 8 | (md5Hash[i] & 0x000000FF) << 24;
-    //}
+    /*for (uint8_t i = 0; i < 4; i++) {
+        char tmp[16];
+        strncpy(tmp, hash + i * 8, 8);
+        sscanf(tmp, "%x", &md5Hash[i]);
+        md5Hash[i] = (md5Hash[i] & 0xFF000000) >> 24 | (md5Hash[i] & 0x00FF0000) >> 8 | (md5Hash[i] & 0x0000FF00) << 8 | (md5Hash[i] & 0x000000FF) << 24;
+    }*/
 
     /* Parse argument (sha1)*/
     uint32_t sha1Hash[5];
