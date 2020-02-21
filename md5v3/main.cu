@@ -41,7 +41,7 @@
 
 #define CONST_WORD_LENGTH_MIN 1
 #define CONST_WORD_LENGTH_MAX 8
-#define HASHES_PER_KERNEL 128UL
+#define HASHES_PER_KERNEL 1 //128UL
 
 #include "assert.cu"
 #include "md5.cu"
@@ -53,7 +53,7 @@ uint8_t g_wordLength;
 char g_word[CONST_WORD_LIMIT];
 char g_charset[CONST_CHARSET_LIMIT];
 char g_cracked[CONST_WORD_LIMIT];
-int BLOCKS, THREADS;
+int BLOCKS = 1, THREADS = 1;
 
 __device__ char g_deviceCharset[CONST_CHARSET_LIMIT];
 __device__ char g_deviceCracked[CONST_WORD_LIMIT];
@@ -149,7 +149,7 @@ __global__ void sha1Crack(uint8_t wordLength, char* charsetWord, uint32_t hash01
 
         //md5Hash((unsigned char*)threadTextWord, threadWordLength, &threadHash01, &threadHash02, &threadHash03, &threadHash04);
         sha1((unsigned char*)threadTextWord, threadWordLength, &threadHash01, &threadHash02, &threadHash03, &threadHash04, &threadHash05);
-
+        printf("%s :: %x\t%x\t%x\t%x\t%x\n", threadTextWord, threadHash01, threadHash02, threadHash03, threadHash04, threadHash05);
         if (threadHash01 == hash01 && threadHash02 == hash02 && threadHash03 == hash03 && threadHash04 == hash04 && threadHash05 == hash05) {
             memcpy(g_deviceCracked, threadTextWord, threadWordLength);
         }
@@ -175,17 +175,17 @@ int main(int argc, char* argv[]) {
     int* prop[2] = { 0 , 0 };
 
 
-    for (int i = 0; i < devices; i++)
+ /*   for (int i = 0; i < devices; i++)
     {
         if (cudaSuccess != cudaGetDeviceProperties(&deviceProp, i))
         {
             BLOCKS += 64;
             THREADS += 128;
-            return;
+            return 0;
         }
         BLOCKS += deviceProp.multiProcessorCount;
         THREADS += deviceProp.maxThreadsPerBlock;
-    }
+    }*/
 
     /* Sync type */
     ERROR_CHECK(cudaSetDeviceFlags(cudaDeviceScheduleSpin));
@@ -205,7 +205,7 @@ int main(int argc, char* argv[]) {
     //char* hash = "1c0d894f6f6ab511099a568f6e876c2f";
 
     //sha1
-    char* hash = "9f5b2e4c02a063822535af58fedb94550ecc79cc";
+    char* hash = "7b7a2f915da4bfa45486f9538348e9145c7a3eed";
 
     /* Parse argument (md5)*/
     //for (uint8_t i = 0; i < 4; i++) {

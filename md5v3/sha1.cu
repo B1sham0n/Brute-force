@@ -11,24 +11,16 @@
 #define rotateright(x,n) ((x>>n) | (x<<(32-n)))
 __device__ __host__ inline void sha1(unsigned char* _word, uint32_t length, uint32_t* hash0, uint32_t* hash1, uint32_t* hash2, uint32_t* hash3, uint32_t* hash4)
 {
-    unsigned char* _word_ = (unsigned char*)malloc(strlen((const char*)_word) + 100);
-    memcpy(_word_, _word, sizeof(unsigned char) * length);
-
+    unsigned char* _word_ = _word;
     uint32_t h0, h1, h2, h3, h4, a, b, c, d, e, f, k, temp;
     h0 = 0x67452301;
     h1 = 0xEFCDAB89;
     h2 = 0x98BADCFE;
     h3 = 0x10325476;
     h4 = 0xC3D2E1F0;
-    int i;
-    //unsigned char* str;
-    //str = (unsigned char*)malloc(strlen((const char*)_word) + 100);
-    //strcpy((char*)str, (const char*)_word);
-    int current_length = length;
-    int original_length = current_length;
+    int i, current_length = length, original_length = length;
     _word_[current_length] = 0x80;
     _word_[current_length + 1] = '\0';
-    char ic = _word_[current_length];
     current_length++;
     int ib = current_length % 64;
     if (ib < 56)
