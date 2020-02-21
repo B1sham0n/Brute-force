@@ -147,7 +147,7 @@ __global__ void sha1Crack(uint8_t wordLength, char* charsetWord, uint32_t hash01
         sha1((unsigned char*)threadTextWord, threadWordLength, &threadHash01, &threadHash02, &threadHash03, &threadHash04, &threadHash05);
         //printf("%s (%d) :: %x\t%x\t%x\t%x\t%x\n", threadTextWord, threadWordLength, threadHash01, threadHash02, threadHash03, threadHash04, threadHash05);
         if (threadHash01 == hash01 && threadHash02 == hash02 && threadHash03 == hash03 && threadHash04 == hash04 && threadHash05 == hash05) {
-            memcpy(g_deviceCracked, threadTextWord, 4*sizeof(char));
+            memcpy(g_deviceCracked, threadTextWord, 4);
         }
 
         if (!next(&threadWordLength, threadCharsetWord, 1)) {
@@ -201,7 +201,7 @@ int main(int argc, char* argv[]) {
     //char* hash = "1c0d894f6f6ab511099a568f6e876c2f";
 
     //sha1
-    char* hash = "7b7a2f915da4bfa45486f9538348e9145c7a3eed";
+    char* hash = "3fccc630418ca4eb4e991516d4bd1f534844d39d";
 
     /* Parse argument (md5)*/
     //for (uint8_t i = 0; i < 4; i++) {
