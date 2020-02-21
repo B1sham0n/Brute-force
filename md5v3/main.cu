@@ -138,24 +138,23 @@ __global__ void sha1Crack(uint8_t wordLength, char* charsetWord, uint32_t hash01
 
     /* Increment current word by thread index */
     next(&threadWordLength, threadCharsetWord, idx);
-    printf("%d", threadWordLength);
+    //printf("%d", wordLength);
     for (uint32_t hash = 0; hash < HASHES_PER_KERNEL; hash++) {
-        for (uint32_t i = 0; i < threadWordLength; i++) {
+        for (uint32_t i = 0; i < wordLength; i++) {
             threadTextWord[i] = sharedCharset[threadCharsetWord[i]];
         }
 
-        sha1((unsigned char*)threadTextWord, threadWordLength, &threadHash01, &threadHash02, &threadHash03, &threadHash04, &threadHash05);
-        //printf("%s (%d) :: %x\t%x\t%x\t%x\t%x\n", threadTextWord, threadWordLength, threadHash01, threadHash02, threadHash03, threadHash04, threadHash05);
+        sha1((unsigned char*)threadTextWord, wordLength, &threadHash01, &threadHash02, &threadHash03, &threadHash04, &threadHash05);
+        //printf("%s (%d) :: %x\t%x\t%x\t%x\t%x\n", threadTextWord, wordLength, threadHash01, threadHash02, threadHash03, threadHash04, threadHash05);
         if (threadHash01 == hash01 && threadHash02 == hash02 && threadHash03 == hash03 && threadHash04 == hash04 && threadHash05 == hash05) {
-            memcpy(g_deviceCracked, threadTextWord, 4);
-            printf("CRACKED / %s (%d) :: %x\t%x\t%x\t%x\t%x\n", threadTextWord, threadWordLength, threadHash01, threadHash02, threadHash03, threadHash04, threadHash05);
+            memcpy(g_deviceCracked, threadTextWord, wordLength);
         }
 
         if (!next(&threadWordLength, threadCharsetWord, 1)) {
             break;
         }
     }
-    printf("After %d", threadWordLength);
+    //printf("AFTER %d", wordLength);
 }
 
 
@@ -203,7 +202,7 @@ int main(int argc, char* argv[]) {
     //char* hash = "1c0d894f6f6ab511099a568f6e876c2f";
 
     //sha1
-    char* hash = "3fccc630418ca4eb4e991516d4bd1f534844d39d";
+    char* hash = "3e9d6d9f0fd38a6f3e59c5df2f274afed24d0b2f";
 
     /* Parse argument (md5)*/
     //for (uint8_t i = 0; i < 4; i++) {
