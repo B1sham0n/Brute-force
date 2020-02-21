@@ -217,7 +217,6 @@ int main(int argc, char* argv[]) {
 
     /* Parse argument (sha1)*/
     uint32_t sha1Hash[5];
-    uint32_t sha1Hash2[5];
 
     char tmp[40];
     for (int i = 0; i < 5; i++)
@@ -225,24 +224,8 @@ int main(int argc, char* argv[]) {
         for (int j = 0; j < 8; j++)
             tmp[j] = hash[i * 8 + j];
 
-        sha1Hash2[i] = (uint32_t)strtoll(tmp, NULL, 16);
+        sha1Hash[i] = (uint32_t)strtoll(tmp, NULL, 16);
     }
-    sha1((unsigned char*)"eda", 3, &sha1Hash[0], &sha1Hash[1], &sha1Hash[2], &sha1Hash[3], &sha1Hash[4]);
-    printf("SHA1 hash1 : \t\t");
-    for (int i = 0; i < 5; i++)
-        printf("%x \t", sha1Hash[i]);
-    printf("\n");
-
-    printf("SHA1 hash2 : \t\t");
-    for (int i = 0; i < 5; i++)
-        printf("%x \t", sha1Hash2[i]);
-    printf("\n");
-
-    if (sha1Hash[0] == sha1Hash2[0] && sha1Hash[1] == sha1Hash2[1] && sha1Hash[2] == sha1Hash2[2] && sha1Hash[3] == sha1Hash2[3] && sha1Hash[4] == sha1Hash2[4]) {
-        printf("EQUAL");
-    }
-
-    printf("\n\n\n");
 
     /* Fill memory */
     memset(g_word, 0, CONST_WORD_LIMIT);
@@ -288,7 +271,7 @@ int main(int argc, char* argv[]) {
             ERROR_CHECK(cudaMemcpy(words[device], g_word, sizeof(uint8_t) * CONST_WORD_LIMIT, cudaMemcpyHostToDevice));
 
             /* Start kernel */
-            sha1Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], sha1Hash2[0], sha1Hash2[1], sha1Hash2[2], sha1Hash2[3], sha1Hash2[4]);
+            sha1Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], sha1Hash[0], sha1Hash[1], sha1Hash[2], sha1Hash[3], sha1Hash[4]);
 
             /* Global increment */
             result = next(&g_wordLength, g_word, BLOCKS * HASHES_PER_KERNEL * THREADS);
