@@ -9,7 +9,7 @@
 #include <device_functions.h>
 #define rotateleft(x,n) ((x<<n) | (x>>(32-n)))
 #define rotateright(x,n) ((x>>n) | (x<<(32-n)))
-__device__ __host__ inline void sha1(unsigned char* _word, uint32_t length, uint32_t* hash0, uint32_t* hash1, uint32_t* hash2, uint32_t* hash3, uint32_t* hash4)
+__device__ __host__ inline void sha1(unsigned char* _word, uint8_t length, uint32_t* hash0, uint32_t* hash1, uint32_t* hash2, uint32_t* hash3, uint32_t* hash4)
 {
     unsigned char* _word_ = _word;
     uint32_t h0, h1, h2, h3, h4, a, b, c, d, e, f, k, temp;
@@ -18,7 +18,10 @@ __device__ __host__ inline void sha1(unsigned char* _word, uint32_t length, uint
     h2 = 0x98BADCFE;
     h3 = 0x10325476;
     h4 = 0xC3D2E1F0;
-    int i, current_length = length, original_length = length;
+    int i;
+    uint8_t current_length, original_length;
+    memcpy(&current_length, &length, sizeof(uint8_t));
+    memcpy(&original_length, &length, sizeof(uint8_t));
     _word_[current_length] = 0x80;
     _word_[current_length + 1] = '\0';
     current_length++;
