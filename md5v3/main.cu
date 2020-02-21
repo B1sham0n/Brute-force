@@ -24,9 +24,6 @@
 #include <iostream>
 #include <time.h>
 #include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <sstream>
 
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
@@ -53,7 +50,7 @@ uint8_t g_wordLength;
 char g_word[CONST_WORD_LIMIT];
 char g_charset[CONST_CHARSET_LIMIT];
 char g_cracked[CONST_WORD_LIMIT];
-int BLOCKS = 1, THREADS = 1;
+int BLOCKS, THREADS;
 
 __device__ char g_deviceCharset[CONST_CHARSET_LIMIT];
 __device__ char g_deviceCracked[CONST_WORD_LIMIT];
@@ -147,11 +144,10 @@ __global__ void sha1Crack(uint8_t wordLength, char* charsetWord, uint32_t hash01
             threadTextWord[i] = sharedCharset[threadCharsetWord[i]];
         }
 
-        //md5Hash((unsigned char*)threadTextWord, threadWordLength, &threadHash01, &threadHash02, &threadHash03, &threadHash04);
         sha1((unsigned char*)threadTextWord, threadWordLength, &threadHash01, &threadHash02, &threadHash03, &threadHash04, &threadHash05);
-        printf("%s :: %x\t%x\t%x\t%x\t%x\n", threadTextWord, threadHash01, threadHash02, threadHash03, threadHash04, threadHash05);
+        //printf("%s (%d) :: %x\t%x\t%x\t%x\t%x\n", threadTextWord, threadWordLength, threadHash01, threadHash02, threadHash03, threadHash04, threadHash05);
         if (threadHash01 == hash01 && threadHash02 == hash02 && threadHash03 == hash03 && threadHash04 == hash04 && threadHash05 == hash05) {
-            memcpy(g_deviceCracked, threadTextWord, threadWordLength);
+            memcpy(g_deviceCracked, threadTextWord, 4*sizeof(char));
         }
 
         if (!next(&threadWordLength, threadCharsetWord, 1)) {
@@ -175,7 +171,7 @@ int main(int argc, char* argv[]) {
     int* prop[2] = { 0 , 0 };
 
 
- /*   for (int i = 0; i < devices; i++)
+    for (int i = 0; i < devices; i++)
     {
         if (cudaSuccess != cudaGetDeviceProperties(&deviceProp, i))
         {
@@ -185,7 +181,7 @@ int main(int argc, char* argv[]) {
         }
         BLOCKS += deviceProp.multiProcessorCount;
         THREADS += deviceProp.maxThreadsPerBlock;
-    }*/
+    }
 
     /* Sync type */
     ERROR_CHECK(cudaSetDeviceFlags(cudaDeviceScheduleSpin));
