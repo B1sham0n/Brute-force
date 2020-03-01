@@ -228,16 +228,16 @@ int main(int argc, char* argv[]) {
     //md5
     //char* hash = "1c0d894f6f6ab511099a568f6e876c2f";
     //sha1
-    char* hash = "7b7a2f915da4bfa45486f9538348e9145c7a3eed";
+    //char* hash = "7b7a2f915da4bfa45486f9538348e9145c7a3eed";
     //sha256
-    /*char hash[] = "5359507df682d0afaeb63ea788c415461d53d4311a2630d978f9112ad0dc7c08";
+    char hash[] = "5359507df682d0afaeb63ea788c415461d53d4311a2630d978f9112ad0dc7c08";
 
     char sha256sum[33], unhexed[33];
     memset(sha256sum, 0, 33);
     memset(unhexed, 0, 33);
 
     sha256("kisa", 4, sha256sum);
-    hex_to_string(unhexed, 32, hash, 64);  */  
+    hex_to_string(unhexed, 32, hash, 64);  
     //printf("sha256:\n%s\n", sha256sum);
     //printf("unhexed:\n%s\n", unhexed);
 
@@ -262,7 +262,7 @@ int main(int argc, char* argv[]) {
     }*/
 
     /* Parse argument (sha1)*/
-    uint32_t sha1Hash[5];
+  /*  uint32_t sha1Hash[5];
 
     char tmp[40];
     for (int i = 0; i < 5; i++)
@@ -271,7 +271,7 @@ int main(int argc, char* argv[]) {
             tmp[j] = hash[i * 8 + j];
 
         sha1Hash[i] = (uint32_t)strtoll(tmp, NULL, 16);
-    }
+    }*/
 
     /* Fill memory */
     memset(g_word, 0, CONST_WORD_LIMIT);
@@ -317,9 +317,9 @@ int main(int argc, char* argv[]) {
             ERROR_CHECK(cudaMemcpy(words[device], g_word, sizeof(uint8_t) * CONST_WORD_LIMIT, cudaMemcpyHostToDevice));
 
             /* Start kernel */
-            //sha256Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], unhexed);
+            sha256Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], unhexed);
             //md5Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], md5Hash[0], md5Hash[1], md5Hash[2], md5Hash[3]);
-            sha1Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], sha1Hash[0], sha1Hash[1], sha1Hash[2], sha1Hash[3], sha1Hash[4]);
+            //sha1Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], sha1Hash[0], sha1Hash[1], sha1Hash[2], sha1Hash[3], sha1Hash[4]);
 
 
             /* Global increment */
