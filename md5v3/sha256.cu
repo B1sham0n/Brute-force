@@ -15,9 +15,25 @@ typedef struct
 {
     uint32 total[2];
     uint32 state[8];
-    char buffer[64];
+    uint8 buffer[64];
 }
 sha256_context;
+
+#define GET_UINT32(n,b,i)                     \
+{                                             \
+    (n) = ((uint32) (b)[(i)    ] << 24)       \
+        | ((uint32) (b)[(i) + 1] << 16)       \
+        | ((uint32) (b)[(i) + 2] <<  8)       \
+        | ((uint32) (b)[(i) + 3]      );      \
+}
+
+#define PUT_UINT32(n,b,i)                     \
+{                                             \
+    (b)[(i)    ] = (uint8) ((n) >> 24);       \
+    (b)[(i) + 1] = (uint8) ((n) >> 16);       \
+    (b)[(i) + 2] = (uint8) ((n) >>  8);       \
+    (b)[(i) + 3] = (uint8) ((n)      );       \
+}
 
 #define GET_UINT32(n,b,i)                     \
 {                                             \
@@ -50,7 +66,7 @@ __device__ __host__ inline void sha256_starts(sha256_context* ctx)
     ctx->state[7] = 0x5BE0CD19;
 }
 
-__device__ __host__ inline void sha256_process(sha256_context* ctx, char data[64])
+__device__ __host__ inline void sha256_process(sha256_context* ctx, uint8 data[64])
 {
     uint32 temp1, temp2, W[64];
     uint32 A, B, C, D, E, F, G, H;
@@ -181,7 +197,7 @@ __device__ __host__ inline void sha256_process(sha256_context* ctx, char data[64
     ctx->state[7] += H;
 }
 
-__device__ __host__ inline void sha256_update(sha256_context* ctx, char* input, uint32 length)
+__device__ __host__ inline void sha256_update(sha256_context* ctx, uint8* input, uint32 length)
 {
     uint32 left, fill;
 
@@ -218,19 +234,18 @@ __device__ __host__ inline void sha256_update(sha256_context* ctx, char* input, 
     }
 }
 
-
-
-__device__ __host__ inline void sha256_finish(sha256_context* ctx, char digest[32])
+__device__ __host__ inline void sha256_finish(sha256_context* ctx, uint8 digest[32])
 {
     uint32 last, padn;
     uint32 high, low;
-    char msglen[8], sha256_padding[64] =
+    uint8 msglen[8], sha256_padding[64] =
     {
      0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     };
+
     high = (ctx->total[0] >> 29)
         | (ctx->total[1] << 3);
     low = (ctx->total[0] << 3);
@@ -254,11 +269,10 @@ __device__ __host__ inline void sha256_finish(sha256_context* ctx, char digest[3
     PUT_UINT32(ctx->state[7], digest, 28);
 }
 
-__device__ __host__ inline void sha256(char* msg, uint8_t length, char sha256[32])
+__device__ __host__ inline void sha256(uint8* msg, uint8 length, uint8 sha256[32])
 {
     sha256_context ctx;
     sha256_starts(&ctx);
     sha256_update(&ctx, msg, length);
     sha256_finish(&ctx, sha256);
-    //printf("%s (%d)\n", msg, length);
 }

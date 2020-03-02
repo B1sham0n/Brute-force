@@ -29,6 +29,7 @@
 #include <cuda_runtime_api.h>
 #include <curand_kernel.h>
 #include <device_functions.h>
+#define uint8  unsigned char
 
 #define CONST_WORD_LIMIT 10
 #define CONST_CHARSET_LIMIT 100
@@ -145,7 +146,7 @@ __global__ void sha1Crack(uint8_t wordLength, char* charsetWord, uint32_t hash01
     }
 }
 
-__device__ __host__ bool compare(char a[], char b[])
+__device__ __host__ bool compare(uint8 a[], uint8 b[])
 {
     for (int i = 0; i < 32; i++)
     {
@@ -155,13 +156,14 @@ __device__ __host__ bool compare(char a[], char b[])
     return true;
 }
 
-__global__ void sha256Crack(uint8_t wordLength, char* charsetWord, char* unhexed) {
+__global__ void sha256Crack(uint8_t wordLength, char* charsetWord, uint8* unhexed) {
     uint32_t idx = (blockIdx.x * blockDim.x + threadIdx.x);
     if (wordLength == 5) {
         idx = (blockIdx.x * blockDim.x + threadIdx.x);
     }
     __shared__ char sharedCharset[CONST_CHARSET_LIMIT];
-    char threadCharsetWord[CONST_WORD_LIMIT], threadTextWord[CONST_WORD_LIMIT], sha256sum[33];
+    char threadCharsetWord[CONST_WORD_LIMIT];
+    uint8 threadTextWord[CONST_WORD_LIMIT], sha256sum[33];
     uint8_t threadWordLength;
     memcpy(threadCharsetWord, charsetWord, CONST_WORD_LIMIT);
     memcpy(&threadWordLength, &wordLength, sizeof(uint8_t));
@@ -180,7 +182,7 @@ __global__ void sha256Crack(uint8_t wordLength, char* charsetWord, char* unhexed
     }
 }
 
-void hex_to_string(char* msg, size_t msg_sz, char* hex, size_t hex_sz)
+void hex_to_string(uint8* msg, size_t msg_sz, char* hex, size_t hex_sz)
 {
     memset(msg, '\0', msg_sz);
     for (int i = 0; i < hex_sz; i += 2)
@@ -233,13 +235,13 @@ int main(int argc, char* argv[]) {
     //sha1
     //char* hash = "7b7a2f915da4bfa45486f9538348e9145c7a3eed";
     //sha256
-    char hash[] = "3725987827e2f52dba3e4243da5c9511abbaf6d92b2061b7a0860ebf596e1313";
+    char* hash = "05bae9f1967b31f66230361c777189ef89d154c6ad62380c7fbafdfb73980b32";
 
-    char sha256sum[33], unhexed[33];
+    uint8 sha256sum[33], unhexed[33];
     memset(sha256sum, 0, 33);
     memset(unhexed, 0, 33);
 
-    sha256("kisa", 4, sha256sum);
+    sha256((uint8*)"pipisa", 5, sha256sum);
     hex_to_string(unhexed, 32, hash, 64);  
     //printf("sha256:\n%s\n", sha256sum);
     //printf("unhexed:\n%s\n", unhexed);
@@ -308,7 +310,7 @@ int main(int argc, char* argv[]) {
         /* Allocate on each device */
         ERROR_CHECK(cudaMalloc((void**)&words[device], sizeof(uint8_t) * CONST_WORD_LIMIT));
     }
-    char* unh;
+    uint8* unh;
     cudaMalloc((char**)&unh, sizeof(char) * 32);
     cudaMemcpy(unh, unhexed, sizeof(char) * 32, cudaMemcpyHostToDevice);
 
@@ -323,7 +325,7 @@ int main(int argc, char* argv[]) {
             /* Copy current data */
             ERROR_CHECK(cudaMemcpy(words[device], g_word, sizeof(uint8_t) * CONST_WORD_LIMIT, cudaMemcpyHostToDevice));
             /* Start kernel */
-            sha256Crack << < 1, 1 >> > (g_wordLength, words[device], unh);
+            sha256Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], unh);
             //md5Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], md5Hash[0], md5Hash[1], md5Hash[2], md5Hash[3]);
             //sha1Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], sha1Hash[0], sha1Hash[1], sha1Hash[2], sha1Hash[3], sha1Hash[4]);
 
