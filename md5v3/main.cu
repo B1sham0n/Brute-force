@@ -36,7 +36,7 @@
 #define CONST_CHARSET "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 #define CONST_CHARSET_LENGTH (sizeof(CONST_CHARSET) - 1)
 
-#define CONST_WORD_LENGTH_MIN 1
+#define CONST_WORD_LENGTH_MIN 6
 #define CONST_WORD_LENGTH_MAX 8
 #define HASHES_PER_KERNEL 1// 128UL
 
@@ -149,13 +149,17 @@ __device__ __host__ bool compare(char a[], char b[])
 {
     for (int i = 0; i < 32; i++)
     {
-        if (a[i] != b[i]) return false;
+        if (a[i] != b[i])
+            return false;
     }
     return true;
 }
 
-__global__ void sha256Crack(uint8_t wordLength, char* charsetWord, char unhexed[]) {
+__global__ void sha256Crack(uint8_t wordLength, char* charsetWord, char* unhexed) {
     uint32_t idx = (blockIdx.x * blockDim.x + threadIdx.x);
+    if (wordLength == 5) {
+        idx = (blockIdx.x * blockDim.x + threadIdx.x);
+    }
     __shared__ char sharedCharset[CONST_CHARSET_LIMIT];
     char threadCharsetWord[CONST_WORD_LIMIT], threadTextWord[CONST_WORD_LIMIT], sha256sum[33];
     uint8_t threadWordLength;
@@ -170,9 +174,8 @@ __global__ void sha256Crack(uint8_t wordLength, char* charsetWord, char unhexed[
 
     sha256(threadTextWord, +wordLength, sha256sum);
 
-
     if (compare(unhexed, sha256sum)){
-        printf("CRACKED");
+        //printf("CRACKED");
         memcpy(g_deviceCracked, threadTextWord, wordLength);
     }
 }
@@ -230,7 +233,7 @@ int main(int argc, char* argv[]) {
     //sha1
     //char* hash = "7b7a2f915da4bfa45486f9538348e9145c7a3eed";
     //sha256
-    char hash[] = "5359507df682d0afaeb63ea788c415461d53d4311a2630d978f9112ad0dc7c08";
+    char hash[] = "3725987827e2f52dba3e4243da5c9511abbaf6d92b2061b7a0860ebf596e1313";
 
     char sha256sum[33], unhexed[33];
     memset(sha256sum, 0, 33);
@@ -305,7 +308,11 @@ int main(int argc, char* argv[]) {
         /* Allocate on each device */
         ERROR_CHECK(cudaMalloc((void**)&words[device], sizeof(uint8_t) * CONST_WORD_LIMIT));
     }
+    char* unh;
+    cudaMalloc((char**)&unh, sizeof(char) * 32);
+    cudaMemcpy(unh, unhexed, sizeof(char) * 32, cudaMemcpyHostToDevice);
 
+    int later = 0;
     while (true) {
         bool result = false;
         bool found = false;
@@ -315,9 +322,8 @@ int main(int argc, char* argv[]) {
 
             /* Copy current data */
             ERROR_CHECK(cudaMemcpy(words[device], g_word, sizeof(uint8_t) * CONST_WORD_LIMIT, cudaMemcpyHostToDevice));
-
             /* Start kernel */
-            sha256Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], unhexed);
+            sha256Crack << < 1, 1 >> > (g_wordLength, words[device], unh);
             //md5Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], md5Hash[0], md5Hash[1], md5Hash[2], md5Hash[3]);
             //sha1Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], sha1Hash[0], sha1Hash[1], sha1Hash[2], sha1Hash[3], sha1Hash[4]);
 
@@ -333,7 +339,9 @@ int main(int argc, char* argv[]) {
             word[i] = g_charset[g_word[i]];
         }
 
-        std::cout << "currently at " << std::string(word, g_wordLength) << " (" << (uint32_t)g_wordLength << ")" << std::endl;
+       // if(later < g_wordLength)
+            std::cout << "currently at " << std::string(word, g_wordLength) << " (" << (uint32_t)g_wordLength << ")" << std::endl;
+        //later = g_wordLength;
 
         for (int device = 0; device < devices; device++) {
             cudaSetDevice(device);

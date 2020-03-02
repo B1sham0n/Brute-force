@@ -260,5 +260,5 @@ __device__ __host__ inline void sha256(char* msg, uint8_t length, char sha256[32
     sha256_starts(&ctx);
     sha256_update(&ctx, msg, length);
     sha256_finish(&ctx, sha256);
-    printf("%s (%d)\n", msg, length);
+    //printf("%s (%d)\n", msg, length);
 }
