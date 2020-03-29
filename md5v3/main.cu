@@ -37,7 +37,7 @@
 #define CONST_CHARSET "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 #define CONST_CHARSET_LENGTH (sizeof(CONST_CHARSET) - 1)
 
-#define CONST_WORD_LENGTH_MIN 6
+#define CONST_WORD_LENGTH_MIN 1
 #define CONST_WORD_LENGTH_MAX 8
 #define HASHES_PER_KERNEL 1// 128UL
 
@@ -192,16 +192,33 @@ void hex_to_string(uint8* msg, size_t msg_sz, char* hex, size_t hex_sz)
         msg[i / 2] = (msb << 4) | lsb;
     }
 }
+int hash_length(char* hash) {
+    int count = 0;
 
+    for (int i = 0; hash[i] != '\0'; i++)
+        count++;
+
+    return count;
+}
 int main(int argc, char* argv[]) {
+
+
+    char* hash;// = "1c0d894f6f6ab511099a568f6e876c2f";
     /* Check arguments */
-    //if (argc != 2 || strlen(argv[1]) != 32) {
-    //    std::cout << argv[0] << " <md5_hash>" << std::endl;
-    //    return -1;
-    //}
+    //argv[0] - hash password
+    if (argc != 2){
+        std::cout << "Need hash password. Now arguments count: " << argc << std::endl;
+            return -1;
+    }
+    else {
+        hash = argv[1];
+        std::cout << "Set hash [" << hash << "]" << std::endl;
+    }
+
+    int hash_size = hash_length(hash);
 
     /* Amount of available devices */
-    int devices;
+    int devices = 1;
     ERROR_CHECK(cudaGetDeviceCount(&devices));
     cudaDeviceProp deviceProp;
     int* prop[2] = { 0 , 0 };
@@ -235,14 +252,9 @@ int main(int argc, char* argv[]) {
     //sha1
     //char* hash = "7b7a2f915da4bfa45486f9538348e9145c7a3eed";
     //sha256
-    char* hash = "05bae9f1967b31f66230361c777189ef89d154c6ad62380c7fbafdfb73980b32";
 
-    uint8 sha256sum[33], unhexed[33];
-    memset(sha256sum, 0, 33);
-    memset(unhexed, 0, 33);
 
-    sha256((uint8*)"pipisa", 5, sha256sum);
-    hex_to_string(unhexed, 32, hash, 64);  
+
     //printf("sha256:\n%s\n", sha256sum);
     //printf("unhexed:\n%s\n", unhexed);
 
@@ -256,27 +268,48 @@ int main(int argc, char* argv[]) {
 
     //return 0;
 
+    uint32_t md5Hash[4];
+    uint32_t sha1Hash[5];
+    uint8 sha256Unhexed[33];
+    uint8* unh;
 
+    switch (hash_size) {
+    case 32: 
+        /* Parse argument (md5) */
+        std::cout << "It's a MD5" << std::endl;
+        for (uint8_t i = 0; i < 4; i++) {
+            char tmp[16];
+            strncpy(tmp, hash + i * 8, 8);
+            sscanf(tmp, "%x", &md5Hash[i]);
+            md5Hash[i] = (md5Hash[i] & 0xFF000000) >> 24 | (md5Hash[i] & 0x00FF0000) >> 8 | (md5Hash[i] & 0x0000FF00) << 8 | (md5Hash[i] & 0x000000FF) << 24;
+        }
+        break;
+    case 40: 
+        /* Parse argument (sha1) */
+        std::cout << "It's a SHA1" << std::endl;
+          char tmp[40];
+          for (int i = 0; i < 5; i++)
+          {
+              for (int j = 0; j < 8; j++)
+                  tmp[j] = hash[i * 8 + j];
 
-    /* Parse argument (md5)*/
-  /*  for (uint8_t i = 0; i < 4; i++) {
-        char tmp[16];
-        strncpy(tmp, hash + i * 8, 8);
-        sscanf(tmp, "%x", &md5Hash[i]);
-        md5Hash[i] = (md5Hash[i] & 0xFF000000) >> 24 | (md5Hash[i] & 0x00FF0000) >> 8 | (md5Hash[i] & 0x0000FF00) << 8 | (md5Hash[i] & 0x000000FF) << 24;
-    }*/
+              sha1Hash[i] = (uint32_t)strtoll(tmp, NULL, 16);
+          }
+        break;
+    case 63: 
+        /* Parse argument (sha256) */
+        std::cout << "It's a SHA256" << std::endl;
+        memset(sha256Unhexed, 0, 33);
+        hex_to_string(sha256Unhexed, 32, hash, 64);
+        
+        cudaMalloc((char**)&unh, sizeof(char) * 32);
+        cudaMemcpy(unh, sha256Unhexed, sizeof(char) * 32, cudaMemcpyHostToDevice);
 
-    /* Parse argument (sha1)*/
-  /*  uint32_t sha1Hash[5];
-
-    char tmp[40];
-    for (int i = 0; i < 5; i++)
-    {
-        for (int j = 0; j < 8; j++)
-            tmp[j] = hash[i * 8 + j];
-
-        sha1Hash[i] = (uint32_t)strtoll(tmp, NULL, 16);
-    }*/
+        break;
+    default: 
+        std::cout << "Wrong hash length" << std::endl;
+        return -1;
+    }
 
     /* Fill memory */
     memset(g_word, 0, CONST_WORD_LIMIT);
@@ -289,7 +322,7 @@ int main(int argc, char* argv[]) {
     /* Main device */
     cudaSetDevice(0);
 
-    /* Time */
+    /* Timers */
     cudaEvent_t clockBegin;
     cudaEvent_t clockLast;
 
@@ -310,9 +343,6 @@ int main(int argc, char* argv[]) {
         /* Allocate on each device */
         ERROR_CHECK(cudaMalloc((void**)&words[device], sizeof(uint8_t) * CONST_WORD_LIMIT));
     }
-    uint8* unh;
-    cudaMalloc((char**)&unh, sizeof(char) * 32);
-    cudaMemcpy(unh, unhexed, sizeof(char) * 32, cudaMemcpyHostToDevice);
 
     int later = 0;
     while (true) {
@@ -324,14 +354,27 @@ int main(int argc, char* argv[]) {
 
             /* Copy current data */
             ERROR_CHECK(cudaMemcpy(words[device], g_word, sizeof(uint8_t) * CONST_WORD_LIMIT, cudaMemcpyHostToDevice));
-            /* Start kernel */
-            sha256Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], unh);
-            //md5Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], md5Hash[0], md5Hash[1], md5Hash[2], md5Hash[3]);
-            //sha1Crack << < BLOCKS, THREADS >> > (g_wordLength, words[device], sha1Hash[0], sha1Hash[1], sha1Hash[2], sha1Hash[3], sha1Hash[4]);
 
+            /* Start kernel */
+            switch (hash_size) {
+            case 32: 
+                md5Crack <<< BLOCKS, THREADS >>> (g_wordLength, words[device], md5Hash[0], md5Hash[1], 
+                    md5Hash[2], md5Hash[3]);
+                break;
+            case 40: 
+                sha1Crack <<< BLOCKS, THREADS >>> (g_wordLength, words[device], sha1Hash[0], sha1Hash[1], 
+                    sha1Hash[2], sha1Hash[3], sha1Hash[4]);
+                break;
+            case 63: 
+                sha256Crack <<< BLOCKS, THREADS >>> (g_wordLength, words[device], unh);
+                break;
+            default:
+                std::cout << "Error when start __global__";
+                break;
+            }
 
             /* Global increment */
-            result = next(&g_wordLength, g_word, BLOCKS /** HASHES_PER_KERNEL*/* THREADS);
+            result = next(&g_wordLength, g_word, BLOCKS * THREADS);
         }
 
         /* Display progress */
@@ -341,9 +384,7 @@ int main(int argc, char* argv[]) {
             word[i] = g_charset[g_word[i]];
         }
 
-       // if(later < g_wordLength)
-            std::cout << "currently at " << std::string(word, g_wordLength) << " (" << (uint32_t)g_wordLength << ")" << std::endl;
-        //later = g_wordLength;
+        std::cout << "currently at " << std::string(word, g_wordLength) << " (" << (uint32_t)g_wordLength << ")" << std::endl;
 
         for (int device = 0; device < devices; device++) {
             cudaSetDevice(device);
@@ -375,6 +416,7 @@ int main(int argc, char* argv[]) {
 
         /* Free on each device */
         cudaFree((void**)words[device]);
+        //cudaFree((char**)unh);
     }
 
     /* Free array */
