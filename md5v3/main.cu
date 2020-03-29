@@ -24,6 +24,9 @@
 #include <iostream>
 #include <time.h>
 #include <string.h>
+#include <windows.h>
+#include <wincrypt.h> /* CryptAcquireContext, CryptGenRandom */
+
 
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
@@ -40,6 +43,9 @@
 #define CONST_WORD_LENGTH_MIN 1
 #define CONST_WORD_LENGTH_MAX 8
 #define HASHES_PER_KERNEL 1// 128UL
+
+#define BCRYPT_HASHSIZE 60
+#define RANDBYTES (16)
 
 #include "assert.cu"
 #include "md5.cu"
@@ -192,6 +198,7 @@ void hex_to_string(uint8* msg, size_t msg_sz, char* hex, size_t hex_sz)
         msg[i / 2] = (msb << 4) | lsb;
     }
 }
+
 int hash_length(char* hash) {
     int count = 0;
 
@@ -200,6 +207,54 @@ int hash_length(char* hash) {
 
     return count;
 }
+
+int bcrypt_gensalt(int factor, char salt[BCRYPT_HASHSIZE])
+{
+    int fd;
+    char input[RANDBYTES];
+    int workf;
+    char* aux;
+
+    // Note: Windows does not have /dev/urandom sadly.
+#ifdef _WIN32 || _WIN64
+    HCRYPTPROV p;
+    ULONG     i;
+
+    // Acquire a crypt context for generating random bytes.
+    if (CryptAcquireContext(&p, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT) == FALSE) {
+        return 1;
+    }
+
+    if (CryptGenRandom(p, RANDBYTES, (BYTE*)input) == FALSE) {
+        return 2;
+    }
+
+    if (CryptReleaseContext(p, 0) == FALSE) {
+        return 3;
+    }
+#else
+    // Get random bytes on Unix/Linux.
+    fd = open("/dev/urandom", O_RDONLY);
+    if (fd == -1)
+        return 1;
+
+    if (try_read(fd, input, RANDBYTES) != 0) {
+        if (try_close(fd) != 0)
+            return 4;
+        return 2;
+    }
+
+    if (try_close(fd) != 0)
+        return 3;
+#endif
+
+    /* Generate salt. */
+    workf = (factor < 4 || factor > 31) ? 12 : factor;
+    aux = crypt_gensalt_rn("$2a$", workf, input, RANDBYTES,
+        salt, BCRYPT_HASHSIZE);
+    return (aux == NULL) ? 5 : 0;
+}
+
 int main(int argc, char* argv[]) {
 
 
