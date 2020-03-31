@@ -42,7 +42,7 @@
 
 #define CONST_WORD_LENGTH_MIN 1
 #define CONST_WORD_LENGTH_MAX 8
-#define HASHES_PER_KERNEL 1// 128UL
+#define HASHES_PER_KERNEL 128UL
 
 #define BCRYPT_HASHSIZE 60
 #define RANDBYTES (16)
@@ -51,6 +51,7 @@
 #include "md5.cu"
 #include "sha1.cu"
 #include "sha256.cu"
+#include "keccak.cu"
 
 
  /* Global variables */
@@ -255,9 +256,18 @@ int hash_length(char* hash) {
 //}
 
 int main(int argc, char* argv[]) {
-
+    
 
     char* hash;// = "1c0d894f6f6ab511099a568f6e876c2f";
+    unsigned char* sha3hash = new unsigned char[128];
+    
+    char* word = "kisa";
+    kernel_keccak_hash((unsigned char*)word, 4, sha3hash);
+    char tmp[128];
+    memcpy(sha3hash, tmp, sizeof(sha3hash));
+    int a = strtoll(tmp, NULL, 16);
+    std::cout << "HASH: " << sha3hash << std::endl;
+
     /* Check arguments */
     //argv[0] - hash password
     if (argc != 2){
