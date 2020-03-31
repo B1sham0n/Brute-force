@@ -136,19 +136,17 @@ __global__ void sha1Crack(uint8_t wordLength, char* charsetWord, uint32_t hash01
     memcpy(&threadWordLength, &wordLength, sizeof(uint8_t));
     memcpy(sharedCharset, g_deviceCharset, sizeof(uint8_t) * CONST_CHARSET_LIMIT);
     next(&threadWordLength, threadCharsetWord, idx);
-    for (uint32_t hash = 0; hash < 1; hash++) {
-        for (uint32_t i = 0; i < wordLength; i++) {
-            threadTextWord[i] = sharedCharset[threadCharsetWord[i]];
-        }
+    for (uint32_t i = 0; i < wordLength; i++) {
+        threadTextWord[i] = sharedCharset[threadCharsetWord[i]];
+    }
 
-        sha1((unsigned char*)threadTextWord, wordLength, &threadHash01, &threadHash02, &threadHash03, &threadHash04, &threadHash05);
-        if (threadHash01 == hash01 && threadHash02 == hash02 && threadHash03 == hash03 && threadHash04 == hash04 && threadHash05 == hash05) {
-            memcpy(g_deviceCracked, threadTextWord, wordLength);
-        }
+    sha1((unsigned char*)threadTextWord, wordLength, &threadHash01, &threadHash02, &threadHash03, &threadHash04, &threadHash05);
+    if (threadHash01 == hash01 && threadHash02 == hash02 && threadHash03 == hash03 && threadHash04 == hash04 && threadHash05 == hash05) {
+        memcpy(g_deviceCracked, threadTextWord, wordLength);
+    }
 
-        if (!next(&threadWordLength, threadCharsetWord, 1)) {
-            break;
-        }
+    if (!next(&threadWordLength, threadCharsetWord, 1)) {
+        return;
     }
 }
 
@@ -208,52 +206,53 @@ int hash_length(char* hash) {
     return count;
 }
 
-int bcrypt_gensalt(int factor, char salt[BCRYPT_HASHSIZE])
-{
-    int fd;
-    char input[RANDBYTES];
-    int workf;
-    char* aux;
-
-    // Note: Windows does not have /dev/urandom sadly.
-#ifdef _WIN32 || _WIN64
-    HCRYPTPROV p;
-    ULONG     i;
-
-    // Acquire a crypt context for generating random bytes.
-    if (CryptAcquireContext(&p, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT) == FALSE) {
-        return 1;
-    }
-
-    if (CryptGenRandom(p, RANDBYTES, (BYTE*)input) == FALSE) {
-        return 2;
-    }
-
-    if (CryptReleaseContext(p, 0) == FALSE) {
-        return 3;
-    }
-#else
-    // Get random bytes on Unix/Linux.
-    fd = open("/dev/urandom", O_RDONLY);
-    if (fd == -1)
-        return 1;
-
-    if (try_read(fd, input, RANDBYTES) != 0) {
-        if (try_close(fd) != 0)
-            return 4;
-        return 2;
-    }
-
-    if (try_close(fd) != 0)
-        return 3;
-#endif
-
-    /* Generate salt. */
-    workf = (factor < 4 || factor > 31) ? 12 : factor;
-    aux = crypt_gensalt_rn("$2a$", workf, input, RANDBYTES,
-        salt, BCRYPT_HASHSIZE);
-    return (aux == NULL) ? 5 : 0;
-}
+//int bcrypt_gensalt(int factor, char salt[BCRYPT_HASHSIZE])
+//{
+//    int fd;
+//    char input[RANDBYTES];
+//    int workf;
+//    char* aux;
+//
+//    // Note: Windows does not have /dev/urandom sadly.
+//#ifdef _WIN32 || _WIN64
+//    HCRYPTPROV p;
+//    ULONG     i;
+//
+//    // Acquire a crypt context for generating random bytes.
+//    if (CryptAcquireContext(&p, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT) == FALSE) {
+//        return 1;
+//    }
+//
+//    if (CryptGenRandom(p, RANDBYTES, (BYTE*)input) == FALSE) {
+//        return 2;
+//    }
+//
+//    if (CryptReleaseContext(p, 0) == FALSE) {
+//        return 3;
+//    }
+//#else
+//    // Get random bytes on Unix/Linux.
+//    fd = open("/dev/urandom", O_RDONLY);
+//    if (fd == -1)
+//        return 1;
+//
+//    if (try_read(fd, input, RANDBYTES) != 0) {
+//        if (try_close(fd) != 0)
+//            return 4;
+//        return 2;
+//    }
+//
+//    if (try_close(fd) != 0)
+//        return 3;
+//#endif
+//
+//    /* Generate salt. */
+//    workf = (factor < 4 || factor > 31) ? 12 : factor;
+//
+//    aux = crypt_gensalt_rn("$2a$", workf, input, RANDBYTES,
+//        salt, BCRYPT_HASHSIZE);
+//    return (aux == NULL) ? 5 : 0;
+//}
 
 int main(int argc, char* argv[]) {
 
@@ -351,7 +350,7 @@ int main(int argc, char* argv[]) {
               sha1Hash[i] = (uint32_t)strtoll(tmp, NULL, 16);
           }
         break;
-    case 63: 
+    case 64: 
         /* Parse argument (sha256) */
         std::cout << "It's a SHA256" << std::endl;
         memset(sha256Unhexed, 0, 33);
@@ -420,7 +419,7 @@ int main(int argc, char* argv[]) {
                 sha1Crack <<< BLOCKS, THREADS >>> (g_wordLength, words[device], sha1Hash[0], sha1Hash[1], 
                     sha1Hash[2], sha1Hash[3], sha1Hash[4]);
                 break;
-            case 63: 
+            case 64: 
                 sha256Crack <<< BLOCKS, THREADS >>> (g_wordLength, words[device], unh);
                 break;
             default:
