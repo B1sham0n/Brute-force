@@ -6,9 +6,9 @@
  *
  * This file is released into the Public Domain.
  */
+#pragma once
+
 #include <stdio.h>
-#include <time.h>
-#include <stdlib.h>
 #include <stdint.h>
 
 #include <cuda_runtime.h>
@@ -20,7 +20,7 @@
 #define KECCAK_STATE_SIZE 25
 #define KECCAK_Q_SIZE 192
 
-__constant__  unsigned long long CUDA_KECCAK_CONSTS[24] = { 0x0000000000000001, 0x0000000000008082,
+__constant__ unsigned long long CUDA_KECCAK_CONSTS[24] = { 0x0000000000000001, 0x0000000000008082,
                                           0x800000000000808a, 0x8000000080008000, 0x000000000000808b, 0x0000000080000001, 0x8000000080008081,
                                           0x8000000000008009, 0x000000000000008a, 0x0000000000000088, 0x0000000080008009, 0x000000008000000a,
                                           0x000000008000808b, 0x800000000000008b, 0x8000000000008089, 0x8000000000008003, 0x8000000000008002,
@@ -74,7 +74,7 @@ __device__ __host__ inline void cuda_keccak_extract(cuda_keccak_ctx_t* ctx)
     }
 }
 
-__device__ __host__  __forceinline__ unsigned long long cuda_keccak_ROTL64(unsigned long long a, unsigned long long  b)
+__device__ __host__ inline __forceinline__ unsigned long long cuda_keccak_ROTL64(unsigned long long a, unsigned long long  b)
 {
     return (a << b) | (a >> (64 - b));
 }
@@ -323,10 +323,42 @@ __device__ __host__ inline void cuda_keccak_final(cuda_keccak_ctx_t* ctx, unsign
     }
 }
 
-__device__ __host__ inline void kernel_keccak_hash(unsigned char* word, unsigned int inlen, unsigned char* hash)
+__global__ inline void kernel_keccak_hash(unsigned char* indata, unsigned int inlen, unsigned char* outdata, unsigned int n_batch, unsigned int KECCAK_BLOCK_SIZE)
 {
+    unsigned int thread = (blockIdx.x * blockDim.x + threadIdx.x);
+    if (thread >= n_batch)
+    {
+        return;
+    }
+    unsigned char* in = indata + thread * inlen;
+    unsigned char* out = outdata + thread * KECCAK_BLOCK_SIZE;
     CUDA_KECCAK_CTX ctx;
-    cuda_keccak_init(&ctx, 512);
-    cuda_keccak_update(&ctx, word, inlen);
-    cuda_keccak_final(&ctx, hash);
+    cuda_keccak_init(&ctx, KECCAK_BLOCK_SIZE << 3);
+    cuda_keccak_update(&ctx, in, inlen);
+    cuda_keccak_final(&ctx, out);
+}
+extern "C"
+{
+    __host__ inline void mcm_cuda_keccak_hash_batch(unsigned char* in, unsigned int inlen, unsigned char* out, unsigned int n_outbit, unsigned int n_batch)
+    {
+        unsigned char* cuda_indata;
+        unsigned char* cuda_outdata;
+        const unsigned int KECCAK_BLOCK_SIZE = (n_outbit >> 3);
+        cudaMalloc(&cuda_indata, inlen * n_batch);
+        cudaMalloc(&cuda_outdata, KECCAK_BLOCK_SIZE * n_batch);
+        cudaMemcpy(cuda_indata, in, inlen * n_batch, cudaMemcpyHostToDevice);
+
+        unsigned int thread = 256;
+        unsigned int block = (n_batch + thread - 1) / thread;
+
+        kernel_keccak_hash << < block, thread >> > (cuda_indata, inlen, cuda_outdata, n_batch, KECCAK_BLOCK_SIZE);
+        cudaMemcpy(out, cuda_outdata, KECCAK_BLOCK_SIZE * n_batch, cudaMemcpyDeviceToHost);
+        cudaDeviceSynchronize();
+        cudaError_t error = cudaGetLastError();
+        if (error != cudaSuccess) {
+            printf("Error cuda keccak hash: %s \n", cudaGetErrorString(error));
+        }
+        cudaFree(cuda_indata);
+        cudaFree(cuda_outdata);
+    }
 }

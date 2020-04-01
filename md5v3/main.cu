@@ -163,9 +163,6 @@ __device__ __host__ bool compare(uint8 a[], uint8 b[])
 
 __global__ void sha256Crack(uint8_t wordLength, char* charsetWord, uint8* unhexed) {
     uint32_t idx = (blockIdx.x * blockDim.x + threadIdx.x);
-    if (wordLength == 5) {
-        idx = (blockIdx.x * blockDim.x + threadIdx.x);
-    }
     __shared__ char sharedCharset[CONST_CHARSET_LIMIT];
     char threadCharsetWord[CONST_WORD_LIMIT];
     uint8 threadTextWord[CONST_WORD_LIMIT], sha256sum[33];
@@ -262,10 +259,15 @@ int main(int argc, char* argv[]) {
     unsigned char* sha3hash = new unsigned char[128];
     
     char* word = "kisa";
-    kernel_keccak_hash((unsigned char*)word, 4, sha3hash);
-    char tmp[128];
-    memcpy(sha3hash, tmp, sizeof(sha3hash));
-    int a = strtoll(tmp, NULL, 16);
+    char* hs = "59ad1a613e7ea88430eedc59babe5a67b784c11c7c55b3d0435ca14c";
+
+    unsigned char* unx = new unsigned char[28];
+    hex_to_string(unx, 28, hs, 56);
+
+    mcm_cuda_keccak_hash_batch((unsigned char*)word, 4, sha3hash, 64, 1);
+    //char tmp[128];
+    //memcpy(sha3hash, tmp, sizeof(sha3hash));
+    //int a = strtoll(tmp, NULL, 16);
     std::cout << "HASH: " << sha3hash << std::endl;
 
     /* Check arguments */
