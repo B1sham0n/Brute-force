@@ -1,23 +1,163 @@
 ﻿  Compiling CUDA source file main.cu...
   
   D:\Cuda\Brute-force\md5v3>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\bin\nvcc.exe" -gencode=arch=compute_30,code=\"sm_30,compute_30\" --use-local-env -ccbin "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\bin\HostX86\x64" -x cu  -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include"  -G   --keep-dir x64\Debug -maxrregcount=0  --machine 64 --compile -cudart static  -g   -DWIN32 -DWIN64 -D_DEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc142.pdb /FS /Zi /RTC1 /MDd " -o x64\Debug\main.cu.obj "D:\Cuda\Brute-force\md5v3\main.cu" 
-D:\Cuda\Brute-force\md5v3\keccak.cu(326): warning : inline qualifier ignored for "__global__" function
+D:/Cuda/Brute-force/md5v3/main.cu(278): warning : variable "clock_speed" was declared but never referenced
   
-D:/Cuda/Brute-force/md5v3/main.cu(261): warning : conversion from a string literal to "char *" is deprecated
+D:/Cuda/Brute-force/md5v3/main.cu(289): warning : conversion from a string literal to "char *" is deprecated
   
-D:/Cuda/Brute-force/md5v3/main.cu(262): warning : conversion from a string literal to "char *" is deprecated
+D:/Cuda/Brute-force/md5v3/main.cu(287): warning : variable "hash2" was declared but never referenced
   
-D:/Cuda/Brute-force/md5v3/main.cu(290): warning : variable "prop" was declared but never referenced
+D:/Cuda/Brute-force/md5v3/main.cu(290): warning : variable "hs" was declared but never referenced
   
-D:/Cuda/Brute-force/md5v3/main.cu(413): warning : variable "later" was declared but never referenced
+D:/Cuda/Brute-force/md5v3/main.cu(442): warning : variable "later" was declared but never referenced
   
-D:\Cuda\Brute-force\md5v3\keccak.cu(203): warning : a __constant__ variable "CUDA_KECCAK_CONSTS" cannot be directly read in a host function
+D:\Cuda\Brute-force\md5v3\keccak.cu(118): warning : a __device__ variable "piln" cannot be directly read in a host function
   
-D:\Cuda\Brute-force\md5v3\keccak.cu(326): warning : inline qualifier ignored for "__global__" function
+D:\Cuda\Brute-force\md5v3\keccak.cu(120): warning : a __device__ variable "r" cannot be directly read in a host function
   
-D:/Cuda/Brute-force/md5v3/main.cu(261): warning : conversion from a string literal to "char *" is deprecated
+D:\Cuda\Brute-force\md5v3\keccak.cu(120): warning : a __device__ variable "r" cannot be directly read in a host function
   
-D:/Cuda/Brute-force/md5v3/main.cu(262): warning : conversion from a string literal to "char *" is deprecated
+D:\Cuda\Brute-force\md5v3\keccak.cu(123): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(125): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(125): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(128): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(130): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(130): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(133): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(135): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(135): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(138): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(140): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(140): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(143): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(145): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(145): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(148): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(150): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(150): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(153): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(155): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(155): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(158): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(160): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(160): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(163): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(165): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(165): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(168): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(170): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(170): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(173): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(175): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(175): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(178): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(180): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(180): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(183): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(185): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(185): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(188): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(190): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(190): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(193): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(195): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(195): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(198): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(200): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(200): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(203): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(205): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(205): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(208): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(210): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(210): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(213): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(215): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(215): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(218): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(220): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(220): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(223): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(225): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(225): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(228): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(230): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(230): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(233): warning : a __device__ variable "piln" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(235): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(235): warning : a __device__ variable "r" cannot be directly read in a host function
+  
+D:\Cuda\Brute-force\md5v3\keccak.cu(305): warning : a __device__ variable "RC" cannot be directly read in a host function
+  
+D:/Cuda/Brute-force/md5v3/main.cu(289): warning : conversion from a string literal to "char *" is deprecated
   
   main.cu
   device_functions.h is an internal header file and must not be used directly.  This file will be removed in a future CUDA release.  Please use cuda_runtime_api.h or cuda_runtime.h instead.
@@ -25,5 +165,5 @@ D:/Cuda/Brute-force/md5v3/main.cu(262): warning : conversion from a string liter
   device_functions.h is an internal header file and must not be used directly.  This file will be removed in a future CUDA release.  Please use cuda_runtime_api.h or cuda_runtime.h instead.
   device_functions.h is an internal header file and must not be used directly.  This file will be removed in a future CUDA release.  Please use cuda_runtime_api.h or cuda_runtime.h instead.
   device_functions.h is an internal header file and must not be used directly.  This file will be removed in a future CUDA release.  Please use cuda_runtime_api.h or cuda_runtime.h instead.
-D:\Cuda\Brute-force\md5v3\keccak.cu(278): warning C4018: <: несоответствие типов со знаком и без знака
+D:/Cuda/Brute-force/md5v3/main.cu(287): warning C4101: hash2: неиспользованная локальная переменная
   md5v3.vcxproj -> D:\Cuda\Brute-force\x64\Debug\md5v3.exe

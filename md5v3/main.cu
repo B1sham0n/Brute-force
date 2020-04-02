@@ -60,7 +60,7 @@ uint8_t g_wordLength;
 char g_word[CONST_WORD_LIMIT];
 char g_charset[CONST_CHARSET_LIMIT];
 char g_cracked[CONST_WORD_LIMIT];
-int BLOCKS, THREADS;
+int BLOCKS, THREADS, devices;
 
 __device__ char g_deviceCharset[CONST_CHARSET_LIMIT], g_deviceCracked[CONST_WORD_LIMIT];
 
@@ -252,23 +252,45 @@ int hash_length(char* hash) {
 //    return (aux == NULL) ? 5 : 0;
 //}
 
+int gcd(int a, int b) {
+    return (a == 0) ? b : gcd(b % a, a);
+}
+
+void gpu_init() {
+    cudaDeviceProp device_prop;
+    int device_count, block_size;
+
+    cudaGetDeviceCount(&device_count);
+    if (device_count < 1) {
+        exit(EXIT_FAILURE);
+    }
+
+    if (cudaGetDeviceProperties(&device_prop, 0) != cudaSuccess) {
+        exit(EXIT_FAILURE);
+    }
+
+    THREADS = device_prop.maxThreadsPerBlock;
+    int number_multi_processors = device_prop.multiProcessorCount;
+    int max_threads_per_mp = device_prop.maxThreadsPerMultiProcessor;
+    block_size = (max_threads_per_mp / gcd(max_threads_per_mp, THREADS));
+    THREADS = max_threads_per_mp / block_size;
+    BLOCKS = block_size * number_multi_processors;
+    int clock_speed = (int)(device_prop.memoryClockRate * 1000 * 1000);
+}
+
+
 int main(int argc, char* argv[]) {
     
 
     char* hash;// = "1c0d894f6f6ab511099a568f6e876c2f";
-    unsigned char* sha3hash = new unsigned char[128];
-    
+    unsigned char* sha3hash = new unsigned char[64];
     char* word = "kisa";
-    char* hs = "59ad1a613e7ea88430eedc59babe5a67b784c11c7c55b3d0435ca14c";
+    keccak(word, 4, sha3hash, 64);
+    for (int i = 0; i < 100; ++i)
+        std::cout << std::hex << (int)sha3hash[i];
+    std::cout << std::endl;
 
-    unsigned char* unx = new unsigned char[28];
-    hex_to_string(unx, 28, hs, 56);
-
-    mcm_cuda_keccak_hash_batch((unsigned char*)word, 4, sha3hash, 64, 1);
-    //char tmp[128];
-    //memcpy(sha3hash, tmp, sizeof(sha3hash));
-    //int a = strtoll(tmp, NULL, 16);
-    std::cout << "HASH: " << sha3hash << std::endl;
+    std::cout << "15: " << std::hex << 15;
 
     /* Check arguments */
     //argv[0] - hash password
@@ -284,7 +306,7 @@ int main(int argc, char* argv[]) {
     int hash_size = hash_length(hash);
 
     /* Amount of available devices */
-    int devices = 1;
+   /* int devices = 1;
     ERROR_CHECK(cudaGetDeviceCount(&devices));
     cudaDeviceProp deviceProp;
     int* prop[2] = { 0 , 0 };
@@ -300,7 +322,8 @@ int main(int argc, char* argv[]) {
         }
         BLOCKS += deviceProp.multiProcessorCount;
         THREADS += deviceProp.maxThreadsPerBlock;
-    }
+    }*/
+    gpu_init();
 
     /* Sync type */
     ERROR_CHECK(cudaSetDeviceFlags(cudaDeviceScheduleSpin));

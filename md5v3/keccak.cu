@@ -1,364 +1,444 @@
-/*
- * keccak.cu  Implementation of Keccak/SHA3 digest
- *
- * Date: 12 June 2019
- * Revision: 1
- *
- * This file is released into the Public Domain.
- */
-#pragma once
-
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-
+#include <string.h> 
+#include <time.h> 
+#include <math.h> 
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
 #include <curand_kernel.h>
 #include <device_functions.h>
 
-#define KECCAK_ROUND 24
-#define KECCAK_STATE_SIZE 25
-#define KECCAK_Q_SIZE 192
+const int digest_size = 256;
+const int digest_size_bytes = digest_size / 8;
 
-__constant__ unsigned long long CUDA_KECCAK_CONSTS[24] = { 0x0000000000000001, 0x0000000000008082,
-                                          0x800000000000808a, 0x8000000080008000, 0x000000000000808b, 0x0000000080000001, 0x8000000080008081,
-                                          0x8000000000008009, 0x000000000000008a, 0x0000000000000088, 0x0000000080008009, 0x000000008000000a,
-                                          0x000000008000808b, 0x800000000000008b, 0x8000000000008089, 0x8000000000008003, 0x8000000000008002,
-                                          0x8000000000000080, 0x000000000000800a, 0x800000008000000a, 0x8000000080008081, 0x8000000000008080,
-                                          0x0000000080000001, 0x8000000080008008 };
+//cudaEvent_t start, stop;
 
-typedef struct {
+#define ROTL64(x, y) (((x) << (y)) | ((x) >> (64 - (y))))
 
-    unsigned char sha3_flag;
-    unsigned int digestbitlen;
-    unsigned long long rate_bits;
-    unsigned long long rate_BYTEs;
-    unsigned long long absorb_round;
+//__device__ __host__ inline const char* chars = "123abcABC";
 
-    int64_t state[KECCAK_STATE_SIZE];
-    unsigned char q[KECCAK_Q_SIZE];
+__device__ const uint64_t RC[24] = {
+	0x0000000000000001, 0x0000000000008082, 0x800000000000808a,
+	0x8000000080008000, 0x000000000000808b, 0x0000000080000001,
+	0x8000000080008081, 0x8000000000008009, 0x000000000000008a,
+	0x0000000000000088, 0x0000000080008009, 0x000000008000000a,
+	0x000000008000808b, 0x800000000000008b, 0x8000000000008089,
+	0x8000000000008003, 0x8000000000008002, 0x8000000000000080,
+	0x000000000000800a, 0x800000008000000a, 0x8000000080008081,
+	0x8000000000008080, 0x0000000080000001, 0x8000000080008008
+};
 
-    unsigned long long bits_in_queue;
+__device__ const int r[24] = {
+	1,  3,  6,  10, 15, 21, 28, 36, 45, 55, 2,  14,
+	27, 41, 56, 8,  25, 43, 62, 18, 39, 61, 20, 44
+};
 
-} cuda_keccak_ctx_t;
-typedef cuda_keccak_ctx_t CUDA_KECCAK_CTX;
+__device__ const int piln[24] = {
+	10, 7,  11, 17, 18, 3, 5,  16, 8,  21, 24, 4,
+	15, 23, 19, 13, 12, 2, 20, 14, 22, 9,  6,  1
+};
 
-__device__ __host__ inline unsigned long long cuda_keccak_leuint64(void* in)
-{
-    unsigned long long a;
-    memcpy(&a, in, 8);
-    return a;
+//__device__ __host__ inline void generate_message(char* message, uint64_t tid, int* str_len) {
+//	int len = 0;
+//	const int num_chars = 94;
+//	char str[21];
+//	while (tid > 0) {
+//		str[len++] = chars[tid % num_chars];
+//		tid /= num_chars;
+//	}
+//
+//	str[len] = '\0';
+//	memcpy(message, str, len + 1);
+//	*str_len = len;
+//}
+
+
+
+__device__ __host__ inline void keccak256(uint64_t state[25]) {
+	uint64_t temp, C[5];
+	int j;
+
+	for (int i = 0; i < 24; i++) {
+		// Theta
+		// for i = 0 to 5 
+		//    C[i] = state[i] ^ state[i + 5] ^ state[i + 10] ^ state[i + 15] ^ state[i + 20];
+		C[0] = state[0] ^ state[5] ^ state[10] ^ state[15] ^ state[20];
+		C[1] = state[1] ^ state[6] ^ state[11] ^ state[16] ^ state[21];
+		C[2] = state[2] ^ state[7] ^ state[12] ^ state[17] ^ state[22];
+		C[3] = state[3] ^ state[8] ^ state[13] ^ state[18] ^ state[23];
+		C[4] = state[4] ^ state[9] ^ state[14] ^ state[19] ^ state[24];
+
+		// for i = 0 to 5
+		//     temp = C[(i + 4) % 5] ^ ROTL64(C[(i + 1) % 5], 1);
+		//     for j = 0 to 25, j += 5
+		//          state[j + i] ^= temp;
+		temp = C[4] ^ ROTL64(C[1], 1);
+		state[0] ^= temp;
+		state[5] ^= temp;
+		state[10] ^= temp;
+		state[15] ^= temp;
+		state[20] ^= temp;
+
+		temp = C[0] ^ ROTL64(C[2], 1);
+		state[1] ^= temp;
+		state[6] ^= temp;
+		state[11] ^= temp;
+		state[16] ^= temp;
+		state[21] ^= temp;
+
+		temp = C[1] ^ ROTL64(C[3], 1);
+		state[2] ^= temp;
+		state[7] ^= temp;
+		state[12] ^= temp;
+		state[17] ^= temp;
+		state[22] ^= temp;
+
+		temp = C[2] ^ ROTL64(C[4], 1);
+		state[3] ^= temp;
+		state[8] ^= temp;
+		state[13] ^= temp;
+		state[18] ^= temp;
+		state[23] ^= temp;
+
+		temp = C[3] ^ ROTL64(C[0], 1);
+		state[4] ^= temp;
+		state[9] ^= temp;
+		state[14] ^= temp;
+		state[19] ^= temp;
+		state[24] ^= temp;
+
+		// Rho Pi
+		// for i = 0 to 24
+		//     j = piln[i];
+		//     C[0] = state[j];
+		//     state[j] = ROTL64(temp, r[i]);
+		//     temp = C[0];
+		temp = state[1];
+		j = piln[0];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[0]);
+		temp = C[0];
+
+		j = piln[1];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[1]);
+		temp = C[0];
+
+		j = piln[2];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[2]);
+		temp = C[0];
+
+		j = piln[3];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[3]);
+		temp = C[0];
+
+		j = piln[4];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[4]);
+		temp = C[0];
+
+		j = piln[5];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[5]);
+		temp = C[0];
+
+		j = piln[6];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[6]);
+		temp = C[0];
+
+		j = piln[7];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[7]);
+		temp = C[0];
+
+		j = piln[8];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[8]);
+		temp = C[0];
+
+		j = piln[9];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[9]);
+		temp = C[0];
+
+		j = piln[10];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[10]);
+		temp = C[0];
+
+		j = piln[11];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[11]);
+		temp = C[0];
+
+		j = piln[12];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[12]);
+		temp = C[0];
+
+		j = piln[13];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[13]);
+		temp = C[0];
+
+		j = piln[14];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[14]);
+		temp = C[0];
+
+		j = piln[15];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[15]);
+		temp = C[0];
+
+		j = piln[16];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[16]);
+		temp = C[0];
+
+		j = piln[17];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[17]);
+		temp = C[0];
+
+		j = piln[18];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[18]);
+		temp = C[0];
+
+		j = piln[19];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[19]);
+		temp = C[0];
+
+		j = piln[20];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[20]);
+		temp = C[0];
+
+		j = piln[21];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[21]);
+		temp = C[0];
+
+		j = piln[22];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[22]);
+		temp = C[0];
+
+		j = piln[23];
+		C[0] = state[j];
+		state[j] = ROTL64(temp, r[23]);
+		temp = C[0];
+
+		//  Chi
+		// for j = 0 to 25, j += 5
+		//     for i = 0 to 5
+		//         C[i] = state[j + i];
+		//     for i = 0 to 5
+		//         state[j + 1] ^= (~C[(i + 1) % 5]) & C[(i + 2) % 5];
+		C[0] = state[0];
+		C[1] = state[1];
+		C[2] = state[2];
+		C[3] = state[3];
+		C[4] = state[4];
+
+		state[0] ^= (~C[1]) & C[2];
+		state[1] ^= (~C[2]) & C[3];
+		state[2] ^= (~C[3]) & C[4];
+		state[3] ^= (~C[4]) & C[0];
+		state[4] ^= (~C[0]) & C[1];
+
+		C[0] = state[5];
+		C[1] = state[6];
+		C[2] = state[7];
+		C[3] = state[8];
+		C[4] = state[9];
+
+		state[5] ^= (~C[1]) & C[2];
+		state[6] ^= (~C[2]) & C[3];
+		state[7] ^= (~C[3]) & C[4];
+		state[8] ^= (~C[4]) & C[0];
+		state[9] ^= (~C[0]) & C[1];
+
+		C[0] = state[10];
+		C[1] = state[11];
+		C[2] = state[12];
+		C[3] = state[13];
+		C[4] = state[14];
+
+		state[10] ^= (~C[1]) & C[2];
+		state[11] ^= (~C[2]) & C[3];
+		state[12] ^= (~C[3]) & C[4];
+		state[13] ^= (~C[4]) & C[0];
+		state[14] ^= (~C[0]) & C[1];
+
+		C[0] = state[15];
+		C[1] = state[16];
+		C[2] = state[17];
+		C[3] = state[18];
+		C[4] = state[19];
+
+		state[15] ^= (~C[1]) & C[2];
+		state[16] ^= (~C[2]) & C[3];
+		state[17] ^= (~C[3]) & C[4];
+		state[18] ^= (~C[4]) & C[0];
+		state[19] ^= (~C[0]) & C[1];
+
+		C[0] = state[20];
+		C[1] = state[21];
+		C[2] = state[22];
+		C[3] = state[23];
+		C[4] = state[24];
+
+		state[20] ^= (~C[1]) & C[2];
+		state[21] ^= (~C[2]) & C[3];
+		state[22] ^= (~C[3]) & C[4];
+		state[23] ^= (~C[4]) & C[0];
+		state[24] ^= (~C[0]) & C[1];
+
+		//  Iota
+		state[0] ^= RC[i];
+	}
 }
 
-__device__ __host__ inline int64_t cuda_keccak_MIN(int64_t a, int64_t b)
-{
-    if (a > b) return b;
-    return a;
+
+__device__ __host__ inline void keccak(const char* message, int message_len, unsigned char* output, int output_len) {
+	uint64_t state[25];
+	uint8_t temp[144];
+	int rsize = 136;
+	int rsize_byte = 17;
+
+	memset(state, 0, sizeof(state));
+
+	for (; message_len >= rsize; message_len -= rsize, message += rsize) {
+		for (int i = 0; i < rsize_byte; i++) {
+			state[i] ^= ((uint64_t*)message)[i];
+		}
+		keccak256(state);
+	}
+
+	// last block and padding
+	memcpy(temp, message, message_len);
+	temp[message_len++] = 1;
+	memset(temp + message_len, 0, rsize - message_len);
+	temp[rsize - 1] |= 0x80;
+
+	for (int i = 0; i < rsize_byte; i++) {
+		state[i] ^= ((uint64_t*)temp)[i];
+	}
+
+	keccak256(state);
+	memcpy(output, state, output_len);
 }
 
-__device__ __host__ inline unsigned long long cuda_keccak_UMIN(unsigned long long a, unsigned long long b)
-{
-    if (a > b) return b;
-    return a;
-}
+//
+//__global__ void benchmark(const char* messages, unsigned char* output, int num_messages) {
+//	const int str_len = 6;
+//	const int output_len = 32;
+//	int tid = threadIdx.x + (blockIdx.x * blockDim.x);
+//	int num_threads = blockDim.x * gridDim.x;
+//
+//	for (; tid < num_messages; tid += num_threads)
+//	{
+//		keccak(&messages[tid * str_len], str_len, &output[tid * output_len], output_len);
+//	}
+//}
+//
+//
+//void gpu_init() {
+//	cudaDeviceProp device_prop;
+//	int device_count, block_size;
+//
+//	cudaGetDeviceCount(&device_count);
+//	if (device_count != 1) {
+//		exit(EXIT_FAILURE);
+//	}
+//
+//	if (cudaGetDeviceProperties(&device_prop, 0) != cudaSuccess) {
+//		exit(EXIT_FAILURE);
+//	}
+//
+//	number_threads = device_prop.maxThreadsPerBlock;
+//	number_multi_processors = device_prop.multiProcessorCount;
+//	max_threads_per_mp = device_prop.maxThreadsPerMultiProcessor;
+//	block_size = (max_threads_per_mp / gcd(max_threads_per_mp, number_threads));
+//	number_threads = max_threads_per_mp / block_size;
+//	number_blocks = block_size * number_multi_processors;
+//	clock_speed = (int)(device_prop.memoryClockRate * 1000 * 1000);
+//}
 
-__device__ __host__ inline void cuda_keccak_extract(cuda_keccak_ctx_t* ctx)
-{
-    unsigned long long len = ctx->rate_bits >> 6;
-    int64_t a;
-    int s = sizeof(unsigned long long);
-
-    for (int i = 0; i < len; i++) {
-        a = cuda_keccak_leuint64((int64_t*)&ctx->state[i]);
-        memcpy(ctx->q + (i * s), &a, s);
-    }
-}
-
-__device__ __host__ inline __forceinline__ unsigned long long cuda_keccak_ROTL64(unsigned long long a, unsigned long long  b)
-{
-    return (a << b) | (a >> (64 - b));
-}
-
-__device__ __host__ inline void cuda_keccak_permutations(cuda_keccak_ctx_t* ctx)
-{
-
-    int64_t* A = ctx->state;;
-
-    int64_t* a00 = A, * a01 = A + 1, * a02 = A + 2, * a03 = A + 3, * a04 = A + 4;
-    int64_t* a05 = A + 5, * a06 = A + 6, * a07 = A + 7, * a08 = A + 8, * a09 = A + 9;
-    int64_t* a10 = A + 10, * a11 = A + 11, * a12 = A + 12, * a13 = A + 13, * a14 = A + 14;
-    int64_t* a15 = A + 15, * a16 = A + 16, * a17 = A + 17, * a18 = A + 18, * a19 = A + 19;
-    int64_t* a20 = A + 20, * a21 = A + 21, * a22 = A + 22, * a23 = A + 23, * a24 = A + 24;
-
-    for (int i = 0; i < KECCAK_ROUND; i++) {
-
-        /* Theta */
-        int64_t c0 = *a00 ^ *a05 ^ *a10 ^ *a15 ^ *a20;
-        int64_t c1 = *a01 ^ *a06 ^ *a11 ^ *a16 ^ *a21;
-        int64_t c2 = *a02 ^ *a07 ^ *a12 ^ *a17 ^ *a22;
-        int64_t c3 = *a03 ^ *a08 ^ *a13 ^ *a18 ^ *a23;
-        int64_t c4 = *a04 ^ *a09 ^ *a14 ^ *a19 ^ *a24;
-
-        int64_t d1 = cuda_keccak_ROTL64(c1, 1) ^ c4;
-        int64_t d2 = cuda_keccak_ROTL64(c2, 1) ^ c0;
-        int64_t d3 = cuda_keccak_ROTL64(c3, 1) ^ c1;
-        int64_t d4 = cuda_keccak_ROTL64(c4, 1) ^ c2;
-        int64_t d0 = cuda_keccak_ROTL64(c0, 1) ^ c3;
-
-        *a00 ^= d1;
-        *a05 ^= d1;
-        *a10 ^= d1;
-        *a15 ^= d1;
-        *a20 ^= d1;
-        *a01 ^= d2;
-        *a06 ^= d2;
-        *a11 ^= d2;
-        *a16 ^= d2;
-        *a21 ^= d2;
-        *a02 ^= d3;
-        *a07 ^= d3;
-        *a12 ^= d3;
-        *a17 ^= d3;
-        *a22 ^= d3;
-        *a03 ^= d4;
-        *a08 ^= d4;
-        *a13 ^= d4;
-        *a18 ^= d4;
-        *a23 ^= d4;
-        *a04 ^= d0;
-        *a09 ^= d0;
-        *a14 ^= d0;
-        *a19 ^= d0;
-        *a24 ^= d0;
-
-        /* Rho pi */
-        c1 = cuda_keccak_ROTL64(*a01, 1);
-        *a01 = cuda_keccak_ROTL64(*a06, 44);
-        *a06 = cuda_keccak_ROTL64(*a09, 20);
-        *a09 = cuda_keccak_ROTL64(*a22, 61);
-        *a22 = cuda_keccak_ROTL64(*a14, 39);
-        *a14 = cuda_keccak_ROTL64(*a20, 18);
-        *a20 = cuda_keccak_ROTL64(*a02, 62);
-        *a02 = cuda_keccak_ROTL64(*a12, 43);
-        *a12 = cuda_keccak_ROTL64(*a13, 25);
-        *a13 = cuda_keccak_ROTL64(*a19, 8);
-        *a19 = cuda_keccak_ROTL64(*a23, 56);
-        *a23 = cuda_keccak_ROTL64(*a15, 41);
-        *a15 = cuda_keccak_ROTL64(*a04, 27);
-        *a04 = cuda_keccak_ROTL64(*a24, 14);
-        *a24 = cuda_keccak_ROTL64(*a21, 2);
-        *a21 = cuda_keccak_ROTL64(*a08, 55);
-        *a08 = cuda_keccak_ROTL64(*a16, 45);
-        *a16 = cuda_keccak_ROTL64(*a05, 36);
-        *a05 = cuda_keccak_ROTL64(*a03, 28);
-        *a03 = cuda_keccak_ROTL64(*a18, 21);
-        *a18 = cuda_keccak_ROTL64(*a17, 15);
-        *a17 = cuda_keccak_ROTL64(*a11, 10);
-        *a11 = cuda_keccak_ROTL64(*a07, 6);
-        *a07 = cuda_keccak_ROTL64(*a10, 3);
-        *a10 = c1;
-
-        /* Chi */
-        c0 = *a00 ^ (~*a01 & *a02);
-        c1 = *a01 ^ (~*a02 & *a03);
-        *a02 ^= ~*a03 & *a04;
-        *a03 ^= ~*a04 & *a00;
-        *a04 ^= ~*a00 & *a01;
-        *a00 = c0;
-        *a01 = c1;
-
-        c0 = *a05 ^ (~*a06 & *a07);
-        c1 = *a06 ^ (~*a07 & *a08);
-        *a07 ^= ~*a08 & *a09;
-        *a08 ^= ~*a09 & *a05;
-        *a09 ^= ~*a05 & *a06;
-        *a05 = c0;
-        *a06 = c1;
-
-        c0 = *a10 ^ (~*a11 & *a12);
-        c1 = *a11 ^ (~*a12 & *a13);
-        *a12 ^= ~*a13 & *a14;
-        *a13 ^= ~*a14 & *a10;
-        *a14 ^= ~*a10 & *a11;
-        *a10 = c0;
-        *a11 = c1;
-
-        c0 = *a15 ^ (~*a16 & *a17);
-        c1 = *a16 ^ (~*a17 & *a18);
-        *a17 ^= ~*a18 & *a19;
-        *a18 ^= ~*a19 & *a15;
-        *a19 ^= ~*a15 & *a16;
-        *a15 = c0;
-        *a16 = c1;
-
-        c0 = *a20 ^ (~*a21 & *a22);
-        c1 = *a21 ^ (~*a22 & *a23);
-        *a22 ^= ~*a23 & *a24;
-        *a23 ^= ~*a24 & *a20;
-        *a24 ^= ~*a20 & *a21;
-        *a20 = c0;
-        *a21 = c1;
-
-        /* Iota */
-        *a00 ^= CUDA_KECCAK_CONSTS[i];
-    }
-}
+//int gcd(int a, int b) {
+//	return (a == 0) ? b : gcd(b % a, a);
+//}
 
 
-__device__ __host__ inline void cuda_keccak_absorb(cuda_keccak_ctx_t* ctx, unsigned char* in)
-{
-
-    unsigned long long offset = 0;
-    for (unsigned long long i = 0; i < ctx->absorb_round; ++i) {
-        ctx->state[i] ^= cuda_keccak_leuint64(in + offset);
-        offset += 8;
-    }
-
-    cuda_keccak_permutations(ctx);
-}
-
-__device__ __host__ inline void cuda_keccak_pad(cuda_keccak_ctx_t* ctx)
-{
-    ctx->q[ctx->bits_in_queue >> 3] |= (1L << (ctx->bits_in_queue & 7));
-
-    if (++(ctx->bits_in_queue) == ctx->rate_bits) {
-        cuda_keccak_absorb(ctx, ctx->q);
-        ctx->bits_in_queue = 0;
-    }
-
-    unsigned long long full = ctx->bits_in_queue >> 6;
-    unsigned long long partial = ctx->bits_in_queue & 63;
-
-    unsigned long long offset = 0;
-    for (int i = 0; i < full; ++i) {
-        ctx->state[i] ^= cuda_keccak_leuint64(ctx->q + offset);
-        offset += 8;
-    }
-
-    if (partial > 0) {
-        unsigned long long mask = (1L << partial) - 1;
-        ctx->state[full] ^= cuda_keccak_leuint64(ctx->q + offset) & mask;
-    }
-
-    ctx->state[(ctx->rate_bits - 1) >> 6] ^= 9223372036854775808ULL;/* 1 << 63 */
-
-    cuda_keccak_permutations(ctx);
-    cuda_keccak_extract(ctx);
-
-    ctx->bits_in_queue = ctx->rate_bits;
-}
-
-/*
- * Digestbitlen must be 128 224 256 288 384 512
- */
-__device__ __host__ inline void cuda_keccak_init(cuda_keccak_ctx_t* ctx, unsigned int digestbitlen)
-{
-    memset(ctx, 0, sizeof(cuda_keccak_ctx_t));
-    ctx->sha3_flag = 0;
-    ctx->digestbitlen = digestbitlen;
-    ctx->rate_bits = 1600 - ((ctx->digestbitlen) << 1);
-    ctx->rate_BYTEs = ctx->rate_bits >> 3;
-    ctx->absorb_round = ctx->rate_bits >> 6;
-    ctx->bits_in_queue = 0;
-}
-
-/*
- * Digestbitlen must be 224 256 384 512
- */
-__device__ __host__ inline void cuda_keccak_sha3_init(cuda_keccak_ctx_t* ctx, unsigned int digestbitlen)
-{
-    cuda_keccak_init(ctx, digestbitlen);
-    ctx->sha3_flag = 1;
-}
-
-__device__ __host__ inline void cuda_keccak_update(cuda_keccak_ctx_t* ctx, unsigned char* in, unsigned long long inlen)
-{
-    int64_t BYTEs = ctx->bits_in_queue >> 3;
-    int64_t count = 0;
-    while (count < inlen) {
-        if (BYTEs == 0 && count <= ((int64_t)(inlen - ctx->rate_BYTEs))) {
-            do {
-                cuda_keccak_absorb(ctx, in + count);
-                count += ctx->rate_BYTEs;
-            } while (count <= ((int64_t)(inlen - ctx->rate_BYTEs)));
-        }
-        else {
-            int64_t partial = cuda_keccak_MIN(ctx->rate_BYTEs - BYTEs, inlen - count);
-            memcpy(ctx->q + BYTEs, in + count, partial);
-
-            BYTEs += partial;
-            count += partial;
-
-            if (BYTEs == ctx->rate_BYTEs) {
-                cuda_keccak_absorb(ctx, ctx->q);
-                BYTEs = 0;
-            }
-        }
-    }
-    ctx->bits_in_queue = BYTEs << 3;
-}
-
-__device__ __host__ inline void cuda_keccak_final(cuda_keccak_ctx_t* ctx, unsigned char* out)
-{
-    if (ctx->sha3_flag) {
-        int mask = (1 << 2) - 1;
-        ctx->q[ctx->bits_in_queue >> 3] = (unsigned char)(0x02 & mask);
-        ctx->bits_in_queue += 2;
-    }
-
-    cuda_keccak_pad(ctx);
-    unsigned long long i = 0;
-
-    while (i < ctx->digestbitlen) {
-        if (ctx->bits_in_queue == 0) {
-            cuda_keccak_permutations(ctx);
-            cuda_keccak_extract(ctx);
-            ctx->bits_in_queue = ctx->rate_bits;
-        }
-
-        unsigned long long partial_block = cuda_keccak_UMIN(ctx->bits_in_queue, ctx->digestbitlen - i);
-        memcpy(out + (i >> 3), ctx->q + (ctx->rate_BYTEs - (ctx->bits_in_queue >> 3)), partial_block >> 3);
-        ctx->bits_in_queue -= partial_block;
-        i += partial_block;
-    }
-}
-
-__global__ inline void kernel_keccak_hash(unsigned char* indata, unsigned int inlen, unsigned char* outdata, unsigned int n_batch, unsigned int KECCAK_BLOCK_SIZE)
-{
-    unsigned int thread = (blockIdx.x * blockDim.x + threadIdx.x);
-    if (thread >= n_batch)
-    {
-        return;
-    }
-    unsigned char* in = indata + thread * inlen;
-    unsigned char* out = outdata + thread * KECCAK_BLOCK_SIZE;
-    CUDA_KECCAK_CTX ctx;
-    cuda_keccak_init(&ctx, KECCAK_BLOCK_SIZE << 3);
-    cuda_keccak_update(&ctx, in, inlen);
-    cuda_keccak_final(&ctx, out);
-}
-extern "C"
-{
-    __host__ inline void mcm_cuda_keccak_hash_batch(unsigned char* in, unsigned int inlen, unsigned char* out, unsigned int n_outbit, unsigned int n_batch)
-    {
-        unsigned char* cuda_indata;
-        unsigned char* cuda_outdata;
-        const unsigned int KECCAK_BLOCK_SIZE = (n_outbit >> 3);
-        cudaMalloc(&cuda_indata, inlen * n_batch);
-        cudaMalloc(&cuda_outdata, KECCAK_BLOCK_SIZE * n_batch);
-        cudaMemcpy(cuda_indata, in, inlen * n_batch, cudaMemcpyHostToDevice);
-
-        unsigned int thread = 256;
-        unsigned int block = (n_batch + thread - 1) / thread;
-
-        kernel_keccak_hash << < block, thread >> > (cuda_indata, inlen, cuda_outdata, n_batch, KECCAK_BLOCK_SIZE);
-        cudaMemcpy(out, cuda_outdata, KECCAK_BLOCK_SIZE * n_batch, cudaMemcpyDeviceToHost);
-        cudaDeviceSynchronize();
-        cudaError_t error = cudaGetLastError();
-        if (error != cudaSuccess) {
-            printf("Error cuda keccak hash: %s \n", cudaGetErrorString(error));
-        }
-        cudaFree(cuda_indata);
-        cudaFree(cuda_outdata);
-    }
-}
+//char* read_in_messages(char* file_name) {
+//	FILE* f;
+//	if (!(f = fopen(file_name, "r")))
+//	{
+//		printf("Error opening file %s", file_name);
+//		exit(1);
+//	}
+//
+//	char* messages = (char*)malloc(sizeof(char) * num_messages * str_length);
+//	if (messages == NULL)
+//	{
+//		perror("Error allocating memory for list of Strings.\n");
+//		exit(1);
+//	}
+//
+//	int index = 0;
+//	char buf[10];
+//	while (1) {
+//		if (fgets(buf, str_length + 1, f) == NULL)
+//			break;
+//		buf[strlen(buf) - 1] = '\0';
+//		memcpy(&messages[index], buf, str_length);
+//		index += str_length - 1;
+//	}
+//
+//	return messages;
+//}
+//
+//
+//
+//
+//void runBenchmarks(char* file_name, int num_messages) {
+//	float h_to_d_time = 0.0;
+//	float comp_time = 0.0;
+//	float d_to_h_time = 0.0;
+//	float total_time = 0.0;
+//	float elapsed_time;
+//	int hashes_per_sec;
+//
+//	size_t array_size = sizeof(char) * str_length * num_messages;
+//	size_t output_size = digest_size_bytes * num_messages;
+//
+//	// Allocate host arrays
+//	char* h_messages = read_in_messages(file_name);
+//	unsigned char* h_output = (unsigned char*)malloc(output_size);
+//
+//	char* d_messages;
+//	unsigned char* d_output;
+//
+//	// Allocate device arrays
+//	cudaMalloc((void**)&d_messages, array_size);
+//	cudaMalloc((void**)&d_output, output_size);
+//
+//	int number_runs = 25;
+//	// Copy Strings from host to device arrays
+//	for (int j = 0; j < number_runs; j++) {
+//		benchmark << <number_blocks, number_threads >> > (d_messages, d_output, num_messages);
+//	}
+//
+//	// Free arrays from memory
+//	free(h_messages);
+//	free(h_output);
+//	cudaFree(d_messages);
+//	cudaFree(d_output);
+//}
