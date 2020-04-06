@@ -1,36 +1,13 @@
 
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-/**
- * CUDA MD5 cracker
- * Copyright (C) 2015  Konrad Kusnierz <iryont@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- */
-
 #include <stdio.h>
 #include <iostream>
-#include <time.h>
-#include <string.h>
-#include <windows.h>
-#include <wincrypt.h> /* CryptAcquireContext, CryptGenRandom */
-
-
+//#include <time.h>
+//#include <string.h>
+//#include <windows.h>
+//#include <wincrypt.h> /* CryptAcquireContext, CryptGenRandom */
 #include <cuda_runtime.h>
-#include <cuda_runtime_api.h>
-#include <curand_kernel.h>
+//#include <cuda_runtime_api.h>
+//#include <curand_kernel.h>
 #include <device_functions.h>
 #define uint8  unsigned char
 
@@ -42,10 +19,9 @@
 
 #define CONST_WORD_LENGTH_MIN 1
 #define CONST_WORD_LENGTH_MAX 8
-#define HASHES_PER_KERNEL 128UL
 
-#define BCRYPT_HASHSIZE 60
-#define RANDBYTES (16)
+//#define BCRYPT_HASHSIZE 60
+//#define RANDBYTES (16)
 
 #include "assert.cu"
 #include "md5.cu"
@@ -91,39 +67,29 @@ __device__ __host__ bool next(uint8_t* length, char* word, uint32_t increment) {
 }
 
 __global__ void md5Crack(uint8_t wordLength, char* charsetWord, uint32_t hash01, uint32_t hash02, uint32_t hash03, uint32_t hash04) {
-    uint32_t idx = (blockIdx.x * blockDim.x + threadIdx.x) * HASHES_PER_KERNEL;
-
-    /* Shared variables */
+    uint32_t idx = (blockIdx.x * blockDim.x + threadIdx.x);
     __shared__ char sharedCharset[CONST_CHARSET_LIMIT];
-
-    /* Thread variables */
     char threadCharsetWord[CONST_WORD_LIMIT];
     char threadTextWord[CONST_WORD_LIMIT];
     uint8_t threadWordLength;
     uint32_t threadHash01, threadHash02, threadHash03, threadHash04;
-
-    /* Copy everything to local memory */
     memcpy(threadCharsetWord, charsetWord, CONST_WORD_LIMIT);
     memcpy(&threadWordLength, &wordLength, sizeof(uint8_t));
     memcpy(sharedCharset, g_deviceCharset, sizeof(uint8_t) * CONST_CHARSET_LIMIT);
-
-    /* Increment current word by thread index */
     next(&threadWordLength, threadCharsetWord, idx);
 
-    for (uint32_t hash = 0; hash < HASHES_PER_KERNEL; hash++) {
-        for (uint32_t i = 0; i < threadWordLength; i++) {
-            threadTextWord[i] = sharedCharset[threadCharsetWord[i]];
-        }
+    for (uint32_t i = 0; i < threadWordLength; i++) {
+        threadTextWord[i] = sharedCharset[threadCharsetWord[i]];
+    }
 
-        md5Hash((unsigned char*)threadTextWord, threadWordLength, &threadHash01, &threadHash02, &threadHash03, &threadHash04);
+    md5Hash((unsigned char*)threadTextWord, threadWordLength, &threadHash01, &threadHash02, &threadHash03, &threadHash04);
 
-        if (threadHash01 == hash01 && threadHash02 == hash02 && threadHash03 == hash03 && threadHash04 == hash04) {
-            memcpy(g_deviceCracked, threadTextWord, threadWordLength);
-        }
+    if (threadHash01 == hash01 && threadHash02 == hash02 && threadHash03 == hash03 && threadHash04 == hash04) {
+        memcpy(g_deviceCracked, threadTextWord, threadWordLength);
+    }
 
-        if (!next(&threadWordLength, threadCharsetWord, 1)) {
-            break;
-        }
+    if (!next(&threadWordLength, threadCharsetWord, 1)) {
+        return;
     }
 }
 
@@ -179,8 +145,11 @@ __global__ void sha256Crack(uint8_t wordLength, char* charsetWord, uint8* unhexe
     sha256(threadTextWord, +wordLength, sha256sum);
 
     if (compare(unhexed, sha256sum)){
-        //printf("CRACKED");
         memcpy(g_deviceCracked, threadTextWord, wordLength);
+    }
+
+    if (!next(&threadWordLength, threadCharsetWord, 1)) {
+        return;
     }
 }
 
@@ -258,10 +227,9 @@ int gcd(int a, int b) {
 
 void gpu_init() {
     cudaDeviceProp device_prop;
-    int device_count, block_size;
 
-    cudaGetDeviceCount(&device_count);
-    if (device_count < 1) {
+    cudaGetDeviceCount(&devices);
+    if (devices < 1) {
         exit(EXIT_FAILURE);
     }
 
@@ -269,31 +237,26 @@ void gpu_init() {
         exit(EXIT_FAILURE);
     }
 
-    THREADS = device_prop.maxThreadsPerBlock;
-    int number_multi_processors = device_prop.multiProcessorCount;
     int max_threads_per_mp = device_prop.maxThreadsPerMultiProcessor;
-    block_size = (max_threads_per_mp / gcd(max_threads_per_mp, THREADS));
+    int block_size = (max_threads_per_mp / gcd(max_threads_per_mp, device_prop.maxThreadsPerBlock));
     THREADS = max_threads_per_mp / block_size;
-    BLOCKS = block_size * number_multi_processors;
-    int clock_speed = (int)(device_prop.memoryClockRate * 1000 * 1000);
+    BLOCKS = block_size * device_prop.multiProcessorCount;
+    //int clock_speed = (int)(device_prop.memoryClockRate * 1000 * 1000);
 }
 
 
 int main(int argc, char* argv[]) {
-    
-
-    char* hash;// = "1c0d894f6f6ab511099a568f6e876c2f";
-    unsigned char* sha3hash = new unsigned char[64];
+   char* hash;
+  /*  unsigned char* sha3hash = new unsigned char[64];
     char* word = "kisa";
     keccak(word, 4, sha3hash, 64);
     for (int i = 0; i < 100; ++i)
         std::cout << std::hex << (int)sha3hash[i];
     std::cout << std::endl;
 
-    std::cout << "15: " << std::hex << 15;
+    std::cout << "15: " << std::hex << 15;*/
 
     /* Check arguments */
-    //argv[0] - hash password
     if (argc != 2){
         std::cout << "Need hash password. Now arguments count: " << argc << std::endl;
             return -1;
@@ -304,25 +267,6 @@ int main(int argc, char* argv[]) {
     }
 
     int hash_size = hash_length(hash);
-
-    /* Amount of available devices */
-   /* int devices = 1;
-    ERROR_CHECK(cudaGetDeviceCount(&devices));
-    cudaDeviceProp deviceProp;
-    int* prop[2] = { 0 , 0 };
-
-
-    for (int i = 0; i < devices; i++)
-    {
-        if (cudaSuccess != cudaGetDeviceProperties(&deviceProp, i))
-        {
-            BLOCKS += 64;
-            THREADS += 128;
-            return 0;
-        }
-        BLOCKS += deviceProp.multiProcessorCount;
-        THREADS += deviceProp.maxThreadsPerBlock;
-    }*/
     gpu_init();
 
     /* Sync type */
@@ -334,28 +278,6 @@ int main(int argc, char* argv[]) {
     std::cout << "|    " << BLOCKS << " blocks found" << std::endl;
     std::cout << "|    " << THREADS << " threads found" << std::endl;
     std::cout << "|**********************/" << std::endl;
-
-    //uint32_t md5Hash[4];
-    //md5
-    //char* hash = "1c0d894f6f6ab511099a568f6e876c2f";
-    //sha1
-    //char* hash = "7b7a2f915da4bfa45486f9538348e9145c7a3eed";
-    //sha256
-
-
-
-    //printf("sha256:\n%s\n", sha256sum);
-    //printf("unhexed:\n%s\n", unhexed);
-
-    //if (compare(unhexed, sha256sum))
-    //{
-    //    printf("equal!\n");
-    //}
-    //else {
-    //    printf("not equal!\n");
-    //}
-
-    //return 0;
 
     uint32_t md5Hash[4];
     uint32_t sha1Hash[5];
@@ -466,25 +388,19 @@ int main(int argc, char* argv[]) {
             result = next(&g_wordLength, g_word, BLOCKS * THREADS);
         }
 
-        /* Display progress */
-        char word[CONST_WORD_LIMIT];
+        ///* Display progress */
+        //char word[CONST_WORD_LIMIT];
 
-        for (int i = 0; i < g_wordLength; i++) {
-            word[i] = g_charset[g_word[i]];
-        }
+        //for (int i = 0; i < g_wordLength; i++) {
+        //    word[i] = g_charset[g_word[i]];
+        //}
 
-        std::cout << "currently at " << std::string(word, g_wordLength) << " (" << (uint32_t)g_wordLength << ")" << std::endl;
+        //std::cout << "currently at " << std::string(word, g_wordLength) << " (" << (uint32_t)g_wordLength << ")" << std::endl;
 
         for (int device = 0; device < devices; device++) {
             cudaSetDevice(device);
-
-            /* Synchronize now */
             cudaDeviceSynchronize();
-
-            /* Copy result */
             ERROR_CHECK(cudaMemcpyFromSymbol(g_cracked, g_deviceCracked, sizeof(uint8_t) * CONST_WORD_LIMIT));
-
-            /* Check result */
             if (found = *g_cracked != 0) {
                 std::cout << "cracked " << g_cracked << std::endl;
                 break;
@@ -502,20 +418,11 @@ int main(int argc, char* argv[]) {
 
     for (int device = 0; device < devices; device++) {
         cudaSetDevice(device);
-
-        /* Free on each device */
         cudaFree((void**)words[device]);
-        //cudaFree((char**)unh);
     }
-
-    /* Free array */
     delete[] words;
-
-    /* Main device */
     cudaSetDevice(0);
-
     float milliseconds = 0;
-
     cudaEventRecord(clockLast, 0);
     cudaEventSynchronize(clockLast);
     cudaEventElapsedTime(&milliseconds, clockBegin, clockLast);
