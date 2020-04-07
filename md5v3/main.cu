@@ -9,6 +9,7 @@
 //#include <cuda_runtime_api.h>
 //#include <curand_kernel.h>
 #include <device_functions.h>
+#include "device_launch_parameters.h"
 #define uint8  unsigned char
 
 #define CONST_WORD_LIMIT 10
@@ -28,7 +29,7 @@
 #include "sha1.cu"
 #include "sha256.cu"
 #include "keccak.cu"
-
+#include "sha1new.cu"
 
  /* Global variables */
 uint8_t g_wordLength;
@@ -63,6 +64,16 @@ __device__ __host__ bool next(uint8_t* length, char* word, uint32_t increment) {
         return false;
     }
 
+    return true;
+}
+
+__device__ __host__ bool compare(uint8 a[], uint8 b[], int len)
+{
+    for (int i = 0; i < len; i++)
+    {
+        if (a[i] != b[i])
+            return false;
+    }
     return true;
 }
 
@@ -117,15 +128,32 @@ __global__ void sha1Crack(uint8_t wordLength, char* charsetWord, uint32_t hash01
     }
 }
 
-__device__ __host__ bool compare(uint8 a[], uint8 b[])
-{
-    for (int i = 0; i < 32; i++)
-    {
-        if (a[i] != b[i])
-            return false;
+__global__ void sha1Crack2(uint8_t wordLength, char* charsetWord, uint8* origin) {
+    uint32_t idx = (blockIdx.x * blockDim.x + threadIdx.x);
+    __shared__ char sharedCharset[CONST_CHARSET_LIMIT];
+    char threadCharsetWord[CONST_WORD_LIMIT];
+    uint8 threadTextWord[CONST_WORD_LIMIT], sha1sum[21];
+    uint8_t threadWordLength;
+
+    memcpy(threadCharsetWord, charsetWord, CONST_WORD_LIMIT);
+    memcpy(&threadWordLength, &wordLength, sizeof(uint8_t));
+    memcpy(sharedCharset, g_deviceCharset, sizeof(uint8_t) * CONST_CHARSET_LIMIT);
+    next(&threadWordLength, threadCharsetWord, idx);
+    for (uint32_t i = 0; i < wordLength; i++) {
+        threadTextWord[i] = sharedCharset[threadCharsetWord[i]];
     }
-    return true;
+
+    //sha1((unsigned char*)threadTextWord, wordLength, &threadHash01, &threadHash02, &threadHash03, &threadHash04, &threadHash05);
+    sha1new(threadTextWord, +wordLength, sha1sum);
+    if (compare(sha1sum,origin,20)) {
+        memcpy(g_deviceCracked, threadTextWord, wordLength);
+    }
+
+    if (!next(&threadWordLength, threadCharsetWord, 1)) {
+        return;
+    }
 }
+
 
 __global__ void sha256Crack(uint8_t wordLength, char* charsetWord, uint8* unhexed) {
     uint32_t idx = (blockIdx.x * blockDim.x + threadIdx.x);
@@ -144,7 +172,7 @@ __global__ void sha256Crack(uint8_t wordLength, char* charsetWord, uint8* unhexe
 
     sha256(threadTextWord, +wordLength, sha256sum);
 
-    if (compare(unhexed, sha256sum)){
+    if (compare(unhexed, sha256sum, 32)){
         memcpy(g_deviceCracked, threadTextWord, wordLength);
     }
 
@@ -246,7 +274,7 @@ void gpu_init() {
 
 
 int main(int argc, char* argv[]) {
-   char* hash;
+    char* hash;// = "e9d71f5ee7c92d6dc9e92ffdad17b8bd49418f98";
   /*  unsigned char* sha3hash = new unsigned char[64];
     char* word = "kisa";
     keccak(word, 4, sha3hash, 64);
@@ -256,8 +284,21 @@ int main(int argc, char* argv[]) {
 
     std::cout << "15: " << std::hex << 15;*/
 
-    /* Check arguments */
-    if (argc != 2){
+
+   /*char* testhash = "cb990257247b592eaaed54b84b32d96b7904fd95";
+   char* word = "zzzz";
+   unsigned char* sha1hash = new unsigned char[40];
+   sha1new((unsigned char*)word, 4, sha1hash);
+   uint8 sha1Unhexed[21];
+   hex_to_string(sha1Unhexed, 20, testhash, 40);
+   for (int i = 0; i < 20; i++)
+   {
+       if (sha1Unhexed[i] != sha1hash[i])
+           std::cout << "noooo" << std::endl;
+   }
+   */   
+   /* Check arguments */
+   if (argc != 2) {
         std::cout << "Need hash password. Now arguments count: " << argc << std::endl;
             return -1;
     }
@@ -268,7 +309,7 @@ int main(int argc, char* argv[]) {
 
     int hash_size = hash_length(hash);
     gpu_init();
-
+    cudaGetDeviceCount(&devices);
     /* Sync type */
     ERROR_CHECK(cudaSetDeviceFlags(cudaDeviceScheduleSpin));
 
@@ -284,6 +325,9 @@ int main(int argc, char* argv[]) {
     uint8 sha256Unhexed[33];
     uint8* unh;
 
+    uint8 sha1Unh[21];
+    uint8* sha1_;
+
     switch (hash_size) {
     case 32: 
         /* Parse argument (md5) */
@@ -296,16 +340,20 @@ int main(int argc, char* argv[]) {
         }
         break;
     case 40: 
-        /* Parse argument (sha1) */
+        /* Parse argument (sha1) */ 
         std::cout << "It's a SHA1" << std::endl;
-          char tmp[40];
+          /*char tmp[40];
           for (int i = 0; i < 5; i++)
           {
               for (int j = 0; j < 8; j++)
                   tmp[j] = hash[i * 8 + j];
 
               sha1Hash[i] = (uint32_t)strtoll(tmp, NULL, 16);
-          }
+          }*/
+          memset(sha1Unh, 0, 21);
+          hex_to_string(sha1Unh, 20, hash, 40);
+          cudaMalloc((char**)&sha1_, sizeof(char) * 20);
+          cudaMemcpy(sha1_, sha1Unh, sizeof(char) * 20, cudaMemcpyHostToDevice);
         break;
     case 64: 
         /* Parse argument (sha256) */
@@ -337,8 +385,8 @@ int main(int argc, char* argv[]) {
     cudaEvent_t clockBegin;
     cudaEvent_t clockLast;
 
-    cudaEventCreate(&clockBegin);
-    cudaEventCreate(&clockLast);
+    cudaEventCreate(&clockBegin, cudaEventDefault);
+    cudaEventCreate(&clockLast, cudaEventDefault);
     cudaEventRecord(clockBegin, 0);
 
     /* Current word is different on each device */
@@ -373,8 +421,9 @@ int main(int argc, char* argv[]) {
                     md5Hash[2], md5Hash[3]);
                 break;
             case 40: 
-                sha1Crack <<< BLOCKS, THREADS >>> (g_wordLength, words[device], sha1Hash[0], sha1Hash[1], 
-                    sha1Hash[2], sha1Hash[3], sha1Hash[4]);
+                //sha1Crack <<< BLOCKS, THREADS >>> (g_wordLength, words[device], sha1Hash[0], sha1Hash[1], 
+                //    sha1Hash[2], sha1Hash[3], sha1Hash[4]);
+                sha1Crack2 << <BLOCKS, THREADS >> > (g_wordLength, words[device], sha1_);
                 break;
             case 64: 
                 sha256Crack <<< BLOCKS, THREADS >>> (g_wordLength, words[device], unh);
@@ -394,7 +443,10 @@ int main(int argc, char* argv[]) {
         //for (int i = 0; i < g_wordLength; i++) {
         //    word[i] = g_charset[g_word[i]];
         //}
-
+        if (later != (uint32_t)g_wordLength) {
+            std::cout << "(" << (uint32_t)g_wordLength << ")" << std::endl;
+            later = (uint32_t)g_wordLength;
+        }
         //std::cout << "currently at " << std::string(word, g_wordLength) << " (" << (uint32_t)g_wordLength << ")" << std::endl;
 
         for (int device = 0; device < devices; device++) {
