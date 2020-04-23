@@ -79,10 +79,14 @@
   <ItemGroup>
     <CudaCompile Include="assert.cu" />
     <CudaCompile Include="bcrypt.cu" />
+    <CudaCompile Include="blake2bnew.cu" />
     <CudaCompile Include="keccak.cu" />
+    <CudaCompile Include="keccakv2.cu" />
     <CudaCompile Include="main.cu" />
     <CudaCompile Include="md5.cu" />
+    <CudaCompile Include="md5new.cu" />
     <CudaCompile Include="sha1.cu" />
+    <CudaCompile Include="sha1new.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sha256.cu" />
